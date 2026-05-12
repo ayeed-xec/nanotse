@@ -48,9 +48,7 @@ def _build_model(name: str) -> torch.nn.Module:
     if name == "tdse":
         return TDSEBaseline()
     if name == "nanotse":
-        # Audio-only smoke training. AV training (with video=batch["face"]) lands
-        # in a follow-up sprint with the real VoxCeleb2 loader.
-        return NanoTSE(with_visual=False)
+        return NanoTSE(with_visual=True)
     raise NotImplementedError(f"model '{name}' not implemented yet -- see docs/PLAN.md")
 
 
@@ -110,7 +108,11 @@ def main(argv: list[str] | None = None) -> int:
                 break
             mix = batch["mix"].to(device)
             tgt = batch["target"].to(device)
-            out = model(mix)
+            if isinstance(model, NanoTSE) and model.with_visual:
+                video = batch["face"].to(device)
+                out = model(mix, video)
+            else:
+                out = model(mix)
             est = out[0] if isinstance(out, tuple) else out
             loss = negative_si_snr(est, tgt)
             opt.zero_grad()

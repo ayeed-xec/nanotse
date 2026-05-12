@@ -5,6 +5,20 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — Full AV NanoTSE validated end-to-end on M3 MPS
+**Verified**
+- `make smoke` with `model.name: nanotse` (full AV path, `with_visual=True`):
+  - 4,474,178 params total
+  - baseline SI-SNR(mix, target) = +6.01 dB
+  - 500 steps, monotone trajectory: step 20 = −15.80 dB → step 500 = +1.92 dB
+  - no NaN; no crash; checkpoint saved to `runs/<ts>/model.pt`
+- This exercises the full pipeline under gradient flow: AudioFrontend, VisualFrontend, DualCacheFusion, ChunkAttnBackbone, NamedSlotMemory, slot_to_feat projection, TSEHead, ASDHead. Synthetic data is gaussian + random faces, so the model can't *beat* baseline (no speech structure to learn), but the *learning trajectory is clean* — that's the architecture/bug correctness gate.
+
+**Changed**
+- `scripts/train.py` passes `batch["face"]` to NanoTSE when `with_visual=True`.
+- `configs/smoke.yaml` `model.name: nanotse` (was `tdse`).
+- `_build_model("nanotse")` returns the full AV model. Audio-only NanoTSE is only built explicitly via `NanoTSE(with_visual=False)` (used in tests + audio-only bench rows).
+
 ### 2026-05-12 — W3.1–W3.5: visual frontend, fusion, named-slot memory, ASD, full AV NanoTSE
 **Added (paper contribution 1 lives in W3.3)**
 - `nanotse/models/frontends/visual_avhubert.py` (`VisualFrontend`) — per-frame CNN, 4 stride-2 convs + `AdaptiveAvgPool2d(1)` + `LayerNorm`. `(B, F, H, W, 3) uint8 @ 25 fps → (B, F, 512)`. AV-HuBERT-frozen lands later as a swap-in.

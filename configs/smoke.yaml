@@ -16,4 +16,4 @@ train:
   log_every: 20
   ckpt_every: 250
 model:
-  name: tdse  # placeholder; replaced by `nanotse` once W2 lands the backbone
+  name: nanotse  # full AV NanoTSE with visual + slot memory (W3.5)
