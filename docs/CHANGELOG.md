@@ -5,6 +5,26 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — Latency benchmark
+**Added**
+- `nanotse/eval/latency_bench.py`: streaming forward-pass benchmark. Measures p50/p95/p99/mean/min ms per 40 ms chunk on the current device (auto-picks CUDA → MPS → CPU). Already wired to `make bench`. New modules add a row to the `CONFIGS` list so we catch latency creep as we go.
+- 4 tests (`tests/test_latency_bench.py`): util functions + CLI smoke.
+
+**Measured today (M3 Pro, TDSEBaseline only — full NanoTSE will be larger)**
+
+| Device | Model | p50 (ms) | p95 (ms) | p99 (ms) | RTF (p95/40ms) | vs 60ms budget |
+|---|---|---|---|---|---|---|
+| MPS | TDSE 70k | 1.26 | 2.80 | 3.57 | 0.07x | OK (21x headroom) |
+| MPS | TDSE 25k | 1.38 | 2.56 | 3.06 | 0.06x | OK (23x headroom) |
+| CPU | TDSE 70k | 0.39 | 0.44 | 0.50 | 0.01x | OK (136x headroom) |
+| CPU | TDSE 25k | 0.23 | 0.29 | 0.43 | 0.01x | OK (207x headroom) |
+
+**Observation:** CPU beats MPS at this scale. MPS kernel-launch overhead per op dominates actual compute for a 70k-param model. Will reverse once the model grows past ~1M params or once visual frontend (CNN) lands.
+
+**Decisions** (no-ask)
+- **Bench tracks TDSE today** because that's the only model that exists. Full NanoTSE rows get added to `CONFIGS` as W2.4 + W3.5 land.
+- **Tested via CLI smoke + util tests** rather than running real bench in pytest — keeps `make test` fast.
+
 ### 2026-05-12 — Architecture spec
 **Added**
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md) rewritten from stub into a real contract: end-to-end ASCII data-flow diagram with concrete shapes; one row per planned module with file path, I/O, and streaming-state type; streaming `init_state` / `forward_chunk` interface; multi-task loss schedule with add-when-needed order; sprint-level W2.1 → W4 implementation gates; explicit "what is NOT in scope" guard against scope creep (no cross-session persistence, no far-field pivot, no framework layer, no premature abstractions).
