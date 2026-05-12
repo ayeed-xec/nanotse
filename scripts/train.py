@@ -22,7 +22,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from nanotse.data import SyntheticAVMixDataset
+from nanotse.data import SyntheticAVMixDataset, VoxCeleb2MixDataset
 from nanotse.losses import negative_si_snr, si_snr
 from nanotse.models.baselines.tdse import TDSEBaseline
 from nanotse.models.nanotse import NanoTSE
@@ -80,13 +80,29 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run:    {run_dir.relative_to(repo_root)}")
     print(f"device: {device}   model: {cfg.model.name}   steps: {cfg.train.steps}")
 
-    ds = SyntheticAVMixDataset(
-        num_clips=cfg.data.num_clips or 200,
-        clip_seconds=cfg.data.clip_seconds,
-        sample_rate=cfg.data.sample_rate,
-        fps=cfg.data.fps,
-        seed=cfg.seed,
-    )
+    # Prefer real data if data/smoke/manifest.json exists; else synthetic fallback.
+    real_manifest = cfg.data.root / "manifest.json"
+    ds: SyntheticAVMixDataset | VoxCeleb2MixDataset
+    if real_manifest.exists():
+        ds = VoxCeleb2MixDataset(
+            cfg.data.root,
+            split="train",
+            clip_seconds=cfg.data.clip_seconds,
+            sample_rate=cfg.data.sample_rate,
+            fps=cfg.data.fps,
+            num_items=cfg.data.num_clips or 200,
+            seed=cfg.seed,
+        )
+        print(f"data:   real VoxCeleb2 ({real_manifest})")
+    else:
+        ds = SyntheticAVMixDataset(
+            num_clips=cfg.data.num_clips or 200,
+            clip_seconds=cfg.data.clip_seconds,
+            sample_rate=cfg.data.sample_rate,
+            fps=cfg.data.fps,
+            seed=cfg.seed,
+        )
+        print(f"data:   synthetic (no manifest at {real_manifest})")
     loader = DataLoader(ds, batch_size=cfg.data.batch_size, shuffle=True)
 
     model = _build_model(cfg.model.name).to(device)

@@ -79,6 +79,28 @@ def bench(
     }
 
 
+class _AVAudioOnlyWrapper(nn.Module):
+    """Wraps an AV model so the audio-only bench can drive it.
+
+    The bench measures forward latency given an audio chunk; for AV models
+    we synthesize a matching-duration dummy video on-device and forward both.
+    """
+
+    def __init__(self, inner: nn.Module, fps: int = 25, sample_rate: int = 16000) -> None:
+        super().__init__()
+        self.inner = inner
+        self.fps = fps
+        self.sample_rate = sample_rate
+
+    def forward(self, audio: torch.Tensor) -> torch.Tensor:
+        b, t = audio.shape
+        n_frames = max(1, int(t * self.fps / self.sample_rate))
+        video = torch.zeros(b, n_frames, 112, 112, 3, dtype=torch.uint8, device=audio.device)
+        out = self.inner(audio, video)
+        result: torch.Tensor = out[0] if isinstance(out, tuple) else out
+        return result
+
+
 # Models to bench. Add new rows as modules land.
 CONFIGS: list[tuple[str, Callable[[], nn.Module]]] = [
     ("TDSEBaseline default     ", lambda: TDSEBaseline()),
@@ -90,6 +112,23 @@ CONFIGS: list[tuple[str, Callable[[], nn.Module]]] = [
     (
         "NanoTSE audio-only small ",
         lambda: NanoTSE(d_model=128, n_heads=2, n_layers=1, cache_len=100, with_visual=False),
+    ),
+    ("NanoTSE full AV  (W3.5)  ", lambda: _AVAudioOnlyWrapper(NanoTSE(with_visual=True))),
+    (
+        "NanoTSE full AV  small   ",
+        lambda: _AVAudioOnlyWrapper(
+            NanoTSE(
+                d_model=128,
+                n_heads=2,
+                n_layers=1,
+                cache_len=100,
+                d_visual=128,
+                n_slots=4,
+                d_slot=128,
+                frame_size=64,
+                with_visual=True,
+            )
+        ),
     ),
 ]
 

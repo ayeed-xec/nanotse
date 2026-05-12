@@ -5,6 +5,32 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — train.py auto-uses real data; AV latency benched
+**Changed**
+- `scripts/train.py` now auto-detects whether to use `VoxCeleb2MixDataset` (real) or `SyntheticAVMixDataset` (fallback) based on whether `data/smoke/manifest.json` exists. `make smoke` switches paths transparently. Prints the chosen data source.
+- `nanotse/eval/latency_bench.py`: added `_AVAudioOnlyWrapper` so the audio-only bench API can drive the full AV NanoTSE (generates a matching-duration zero-video on device per forward). Two new rows in `CONFIGS`: "NanoTSE full AV (W3.5)" and "NanoTSE full AV small".
+
+**Verified — full AV NanoTSE on real audio**
+- `make smoke` (full AV, 4.47 M params, real VoxCeleb2 200 items cycled from 6 train wavs, MPS):
+  - baseline +3.57 dB
+  - step 20: −7.47 dB → step 500: +3.35 dB
+  - monotone-ish (oscillates around baseline at the end as expected from cycling 6 wavs through 4.5M params with random face placeholders).
+  - **No NaN, no crash, ckpt saved.**
+
+**Measured — full AV latency on M3 MPS**
+
+| Device | Model | params | p50 | p95 | RTF | Budget |
+|---|---|---|---|---|---|---|
+| MPS | NanoTSE audio-only | 1.81 M | 4.06 ms | 4.78 ms | 0.12× | OK (12× headroom) |
+| MPS | **NanoTSE full AV** | **4.47 M** | **6.95 ms** | **7.88 ms** | **0.20×** | **OK (7.6× headroom)** |
+| MPS | NanoTSE full AV small | 1.02 M | 6.70 ms | 8.48 ms | 0.21× | OK |
+
+Adding the full visual stack (VisualFrontend + DualCacheFusion + NamedSlotMemory + ASDHead) costs ~3 ms p95 on top of the audio-only path. Still 7.6× under the 60 ms budget. (The "small AV" being slower than "full AV" is MPS kernel-launch overhead — same effect we saw on small TDSE earlier; CUDA should reverse this.)
+
+**Decisions** (no-ask)
+- **Auto-detect real-vs-synthetic data via manifest presence** instead of adding a Pydantic `data.source` field. Single behavior to configure, no config-knob proliferation. The CHOSEN source is printed in the run log for traceability.
+- **AV bench uses a zero-video tensor.** Real video doesn't change CONV op count materially; the dummy is fine for latency (not for quality). Real-data AV bench is for paper-deployability claims, not for shape inference.
+
 ### 2026-05-12 — W2.5: real VoxCeleb2-mix loader + W2.4 real-speech gate cleared
 **Fetched (M3, one-time)**
 - Ran `scripts/data_prep/fetch_voxceleb2_mix_smoke.py --num-train-speakers 3 --num-val-speakers 2 --clips-per-speaker 2`. 5 speakers (`id00017, id00061, id00081, id00154, id00419`), 10 clips, 2.2 MB streamed from HF.
