@@ -51,6 +51,40 @@ def test_slot_memory_streaming_chains_state() -> None:
     assert state["step"] == 2
 
 
+def test_slot_memory_lru_updates_on_winner() -> None:
+    """After forward_chunk, the dominant slot's LRU timestamp should equal new step."""
+    torch.manual_seed(0)
+    m = NamedSlotMemory(n_slots=4, d_input=16, d_slot=16, n_iters=2)
+    state = m.init_state(1, torch.device("cpu"))
+    x = torch.randn(1, 10, 16)
+    (_, _), new_state = m.forward_chunk(x, state)
+    # One slot must have LRU == new_state["step"]; the rest stay at 0.
+    lru = new_state["lru"][0]
+    assert (lru == new_state["step"]).sum().item() == 1
+    assert (lru == 0).sum().item() == m.n_slots - 1
+
+
+def test_slot_memory_evict_lru_resets_oldest() -> None:
+    """evict_lru replaces the slot with the smallest LRU stamp; new slot equals slot_init."""
+    torch.manual_seed(0)
+    m = NamedSlotMemory(n_slots=4, d_input=16, d_slot=16, n_iters=1)
+    # Build a state with hand-crafted LRU so eviction target is deterministic.
+    state = m.init_state(1, torch.device("cpu"))
+    # Hand-set: slot 0 has LRU=5, slot 1 has LRU=3, slot 2 has LRU=10, slot 3 has LRU=1 (oldest).
+    state["lru"] = torch.tensor([[5.0, 3.0, 10.0, 1.0]])
+    # Mutate slots so the difference between current state and slot_init is visible.
+    state["slots"] = state["slots"] + 1.0  # all slots become slot_init + 1
+    state["step"] = 11
+
+    new_state = m.evict_lru(state)
+    # Slot 3 should now equal slot_init[0, 3]; others unchanged.
+    assert torch.allclose(new_state["slots"][0, 3], m.slot_init[0, 3])
+    for i in (0, 1, 2):
+        assert torch.allclose(new_state["slots"][0, i], state["slots"][0, i])
+    # Newly-bound slot's LRU is bumped to the current step.
+    assert new_state["lru"][0, 3].item() == 11.0
+
+
 def test_slot_memory_differentiable() -> None:
     m = NamedSlotMemory(n_slots=8, d_input=32, d_slot=32)
     x = torch.randn(1, 10, 32, requires_grad=True)

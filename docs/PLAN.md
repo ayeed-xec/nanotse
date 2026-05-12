@@ -96,8 +96,12 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
       `forward(audio, video=None) -> (tse_out, asd_logits | None)`.
 - [ ] MeMo reimpl per `av-listen/docs/MEMO_REIMPL_PLAN.md`:
       SpeakerBank, ContextBank, MeMoWrapper.forward_{chunk,offline}.
-- [ ] Wire InfoNCE + ASD-BCE + slot-consistency losses.
-- [ ] LRU eviction across slots (defer until multi-speaker integration).
+      Deferred to 3060/real-data — needs validation against paper's 9.85 dB.
+- [x] Loss library: `slot_infonce`, `asd_bce`, `slot_consistency` written
+      in `nanotse/losses/` with tests. Not yet wired into training (synthetic
+      data has no real speaker identity for InfoNCE / no GT for ASD).
+- [x] LRU eviction in `NamedSlotMemory.evict_lru()` — slot LRU stamps
+      updated on every `forward_chunk` (winner = argmax of summed attention).
 - **Gate:** MeMo ≥ TDSE+1 dB; NanoTSE ≥ MeMo+0.5 dB on M3 smoke.
 
 ### W4 — first A100 burst
@@ -111,7 +115,12 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - [ ] Full NanoTSE on full VoxCeleb2-mix.
 - [ ] Ablations: slot-mem vs MeMo banks; face channel; cross-session
       loss; N ∈ {1, 4, 16, 32}.
-- [ ] Implement IBA (Hungarian over multi-session test).
+- [x] `IBA` metric (`nanotse/eval/iba.py`): Hungarian-matched
+      slot↔speaker accuracy. `iba_score` (single sequence) and
+      `iba_multi_session` (concatenated sessions) with 10 tests covering
+      perfect alignment, permutation invariance, Alice-leaves-returns,
+      random-baseline, shape guards. Real-data multi-session test set
+      curation is W7-8.
 - **Gate:** NanoTSE beats MeMo reimpl on IBA by ≥ 10 %.
 
 ### W7–8 — benchmarks + paper draft

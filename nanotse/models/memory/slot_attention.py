@@ -6,11 +6,15 @@ both modalities through training). Slots compete for input via softmax-over-
 slots attention; each slot updates via a ``GRUCell`` on its assigned input.
 
 The slot bank persists across streaming chunks -- caller passes ``state``
-in/out explicitly. LRU eviction is deferred to the integration layer
-(W3.5+); for now slots are a fixed bank that just keeps refining.
+in/out explicitly. Each slot also carries an LRU timestamp tracking the
+most recent chunk in which the slot was the dominant attention winner.
+:meth:`evict_lru` resets the least-recently-used slot to ``slot_init`` --
+the integration layer (W3.5+) decides when to call it (e.g. when a novel
+speaker arrives and the bank is full).
 
 State schema (per chunk call):
     {"slots":  (B, N, d_slot),
+     "lru":    (B, N) float,
      "step":   int}
 """
 
@@ -24,6 +28,7 @@ from torch import nn
 
 class SlotState(TypedDict):
     slots: torch.Tensor  # (B, N, d_slot)
+    lru: torch.Tensor  # (B, N) -- last `step` at which the slot was the winner
     step: int
 
 
@@ -74,6 +79,7 @@ class NamedSlotMemory(nn.Module):
     def init_state(self, batch_size: int, device: torch.device) -> SlotState:
         return {
             "slots": self.slot_init.expand(batch_size, -1, -1).contiguous().to(device),
+            "lru": torch.zeros(batch_size, self.n_slots, device=device),
             "step": 0,
         }
 
@@ -116,8 +122,34 @@ class NamedSlotMemory(nn.Module):
         soft_slot = attn @ slots  # (B, T, S)
         augmented = torch.cat([x, soft_slot], dim=-1)  # (B, T, D + S)
 
-        new_state: SlotState = {"slots": slots, "step": state["step"] + 1}
+        # LRU update: stamp the winner-slot per batch with the new step.
+        b = x.shape[0]
+        new_step = state["step"] + 1
+        winner = attn.sum(dim=1).argmax(dim=-1)  # (B,) total-attention winner per batch
+        new_lru = state["lru"].clone()
+        new_lru[torch.arange(b, device=x.device), winner] = float(new_step)
+
+        new_state: SlotState = {"slots": slots, "lru": new_lru, "step": new_step}
         return (augmented, slots), new_state
+
+    def evict_lru(self, state: SlotState) -> SlotState:
+        """Reset the least-recently-used slot per batch back to ``slot_init``.
+
+        Caller decides when to invoke (typically after detecting a novel
+        speaker that doesn't match any existing slot, with the bank full).
+        Returns a NEW state dict; the input is not mutated in-place.
+        """
+        b = state["slots"].shape[0]
+        evict_idx = state["lru"].argmin(dim=-1)  # (B,)
+
+        new_slots = state["slots"].clone()
+        new_lru = state["lru"].clone()
+        batch_idx = torch.arange(b, device=state["slots"].device)
+        new_slots[batch_idx, evict_idx] = self.slot_init[0, evict_idx]
+        # Newly-bound slot becomes the most-recently-touched.
+        new_lru[batch_idx, evict_idx] = float(state["step"])
+
+        return {"slots": new_slots, "lru": new_lru, "step": state["step"]}
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Offline: init fresh slots, run one chunk, return augmented + slots."""

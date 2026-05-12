@@ -5,6 +5,31 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — Multi-task loss library, LRU eviction, IBA metric (all M3-validatable pieces)
+**Added — losses (library functions, not yet wired into training)**
+- `nanotse/losses/infonce.py` (`slot_infonce`) — contrastive over per-sample slot embeddings with speaker_id labels; pull same-speaker close, push different-speaker apart. Handles batches with no positive pairs (returns 0). NaN-safe at masked diagonal.
+- `nanotse/losses/asd_bce.py` (`asd_bce`) — BCE-with-logits over per-slot ASD logits with one-hot active-speaker target.
+- `nanotse/losses/consistency.py` (`slot_consistency`) — MSE between two slot banks at different timepoints; supports the "Alice leaves and returns" stability story.
+
+**Added — NamedSlotMemory: LRU eviction**
+- New `lru` field in `SlotState` (per-batch per-slot LRU stamp).
+- `forward_chunk` now updates the winner slot's LRU stamp on every call (winner = `argmax(attn.sum(dim=time))`).
+- `evict_lru(state) -> SlotState` resets the least-recently-used slot to `slot_init` and bumps its LRU. Pure function — input state not mutated.
+
+**Added — IBA metric (paper contribution 3)**
+- `nanotse/eval/iba.py` (`iba_score`, `iba_multi_session`) — Hungarian-matched cross-session identity accuracy. Scipy's `linear_sum_assignment` finds the optimal slot→speaker mapping; fraction of frames at the optimal matching is the score. `iba_multi_session` concatenates sessions before scoring so the same speaker re-using the same slot across sessions counts as the same canonical identity.
+
+**Tests** — 26 new across `tests/test_losses.py`, `tests/test_slot_memory.py` (LRU), `tests/test_iba.py`. Total now **91 passed**, **97% coverage**.
+
+**Decisions** (no-ask, logged)
+- **Losses are library-only for now.** No new-loss wiring into `scripts/train.py` until real data + labels arrive. Synthetic data has `speaker_id` field but no consistent identity signal to learn (face frames are random uint8). Wiring now would be cargo-cult.
+- **`N812` (lowercase `functional` imported as `F`) globally ignored.** `import torch.nn.functional as F` is the PyTorch standard idiom across the codebase. Per-file noqa added clutter.
+- **LRU winner = argmax of summed attention across time** per chunk, per batch. Simple, deterministic, doesn't need a threshold. Real "novelty detection" (when to evict) is the caller's call; this module just maintains the stamps.
+- **`evict_lru` returns a new state dict, not mutating.** Cleaner functional API; cheap because cloning a (B, N, S) tensor is small.
+- **IBA: scipy.optimize.linear_sum_assignment** instead of a hand-rolled Hungarian. Battle-tested, transitively in deps via librosa.
+- **`scipy.*` added to mypy `ignore_missing_imports`** since `scipy-stubs` is a heavy install and scipy is only touched in one place.
+- **InfoNCE NaN-safety**: `torch.where(pos_mask > 0, log_prob, 0)` instead of `log_prob * pos_mask`. The naive multiply triggers `-inf * 0 → nan` at the masked-out diagonal entries.
+
 ### 2026-05-12 — Full AV NanoTSE validated end-to-end on M3 MPS
 **Verified**
 - `make smoke` with `model.name: nanotse` (full AV path, `with_visual=True`):
