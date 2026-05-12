@@ -12,7 +12,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field
 
-Device = Literal["cpu", "mps", "cuda"]
+Device = Literal["cpu", "mps", "cuda", "auto"]
 ModelName = Literal["tdse", "memo", "nanotse", "av_skima"]
 
 

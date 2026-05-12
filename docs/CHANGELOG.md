@@ -273,3 +273,46 @@ NanoTSE at the full 1.8 M params still has ~12× headroom on MPS, ~57× on CPU. 
 - **Ruff preset** — included `B` (bugbear), `SIM`, `PT`, `RUF`, `N`, `C4` in addition to the defaults. Tests get an exemption from `N802/N803` for non-snake test names.
 - **CI: CPU torch only** — install `torch torchaudio` from the official CPU index before `pip install -e ".[dev]"`. MPS/CUDA paths are tested locally; CI just guards correctness on CPU.
 - **README** — intentionally not created (the kickoff doc didn't list one; `docs/PLAN.md` is the canonical entry point).
+
+### 2026-05-12 — 3060 box bootstrap (W3.5 build landed in WSL2)
+**Added**
+- Initial setup on the RTX 3060 Windows + WSL2 Ubuntu box: uv 0.11.13, Python 3.11.15 (uv-fetched), torch 2.11.0+cu128, torchaudio 2.11.0+cu128, triton 3.6.0.
+- Toolchain gates: .venv/bin/ruff format --check . (60 files, all formatted, all checks pass), .venv/bin/mypy nanotse (34 source files, mypy --strict clean), .venv/bin/pytest 109/116 — the 7 fails are all VoxCeleb2-mix data-dependent ( × 6 +  × 1); same pattern a fresh M3 clone would show before data fetch.
+
+**Decisions** (no-ask choices)
+- **Torch CUDA build** —  initially resolved to . The RTX 3060 driver (572.60, max CUDA 12.8) cannot use cu130 (). Reinstalled via  → , , device "NVIDIA GeForce RTX 3060 Laptop GPU", VRAM 6143 MiB, compute capability (8, 6) = Ampere SM_86.
+- **Hardware reality** — RTX 3060 Laptop GPU **6 GB** SKU (not the 12 GB desktop or 8 GB laptop variant the kickoff anticipated). Tightens batch + activation budget. KD-teacher work (AV-MossFormer2-TSE-16K) confirmed off-table on this box — A100-only.
+- **Shell** — WSL2 Ubuntu chosen over native Windows; POSIX Makefile + uv + pre-commit run unmodified.
+
+### 2026-05-13 — `device: auto` resolver + first CUDA smoke + 3060 latency table
+**Fixed**
+- `scripts/train.py::_resolve_device` would fall straight through to CPU when `cfg.device == "mps"` and MPS was unavailable, even on a CUDA-equipped box. On the 3060 that meant `make smoke` ran 13 min on CPU instead of using the GPU.
+- `nanotse/utils/config.py`: added `"auto"` to the `Device` Literal so configs validate.
+- `scripts/train.py`: added an `"auto"` branch that prefers CUDA → MPS → CPU at runtime. Explicit `"mps"` / `"cuda"` / `"cpu"` semantics unchanged.
+- `configs/smoke.yaml`: `device: mps` → `device: auto`. Same checked-in config now picks the best device on M3, 3060, and A100 with no per-box edit.
+- `tests/test_config.py`: added `test_config_accepts_auto_device`. 5/5 config tests still pass.
+
+**Verified — first CUDA smoke train on 3060**
+- `make smoke` (full AV NanoTSE, 4.47 M params, real VoxCeleb2 200 items cycled from 6 train wavs, CUDA):
+  - **48 s wall time** (vs 13 min on CPU fallback before the fix — ~16× speedup)
+  - baseline +3.57 dB → step 500 +3.42 dB (M3 reported +3.35 — deterministic across MPS/CPU/CUDA at `seed=0`)
+  - no NaN, ckpt at `runs/20260512T170337Z/model.pt`
+- `make test` 116/116 passing on CUDA, including the slow real-speech W2.4 gate (which has its own CUDA→MPS→CPU `_pick_device` and was unaffected by the resolver fix).
+
+**Measured — latency table on 3060 CUDA (p95 per 40 ms chunk; target < 60 ms)**
+
+| Model | params | p50 | p95 | p99 | RTF (p95/40 ms) | vs 60 ms |
+|---|---|---|---|---|---|---|
+| TDSE default | 70 k | 1.47 ms | 1.65 ms | 1.72 ms | 0.04× | OK (36× headroom) |
+| TDSE small | 16 k | 0.55 ms | 0.63 ms | 0.96 ms | 0.02× | OK |
+| NanoTSE audio-only (W2.4) | 1.81 M | 1.09 ms | 2.46 ms | 2.52 ms | 0.06× | OK (24× headroom) |
+| NanoTSE audio-only small | 297 k | 0.65 ms | 0.78 ms | 0.97 ms | 0.02× | OK |
+| **NanoTSE full AV (W3.5)** | **4.47 M** | **3.15 ms** | **3.91 ms** | **5.81 ms** | **0.10×** | **OK (15× headroom)** |
+| NanoTSE full AV small | 1.02 M | 2.76 ms | 3.26 ms | 4.29 ms | 0.08× | OK |
+
+3060 CUDA full-AV p95 (3.91 ms) is ~2× faster than M3 MPS (7.88 ms). All rows clear the 60 ms streaming budget with ≥15× headroom. The 3060 column joins M3 MPS + CPU in the paper Section 5 latency table; i7 CPU + RPi 5 rows land in W7-8.
+
+**Decisions** (no-ask)
+- **`auto` as a first-class Device value** rather than chain-fallback inside the existing `"mps"`/`"cuda"` branches. Explicit beats magical: writing `device: mps` in a config still means MPS only, so M3-pinned configs (and CI's `cpu` strictness) stay unambiguous. Only `auto` opts into runtime detection.
+- **No bench-harness changes** — `nanotse/eval/latency_bench.py` already auto-picks CUDA→MPS→CPU; the M3 `CONFIGS` list ran on CUDA untouched. The full-AV row was already wired via `_AVAudioOnlyWrapper` (added in the M3 build).
+- **The data fetch (`fetch_voxceleb2_mix_smoke.py --num-train-speakers 3 --num-val-speakers 2 --clips-per-speaker 2`) is fully deterministic** — same 5 speakers, same 10 wavs, same manifest bytes as the M3 fetch. Manifest in git is the contract; wavs are reproduced from HF on each new machine.

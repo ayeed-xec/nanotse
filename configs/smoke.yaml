@@ -1,8 +1,8 @@
-# M3 Pro Mac smoke train config — ≤ 10 min wall-clock target.
-# Used by every "did this architectural change survive?" check
-# before any A100 escalation.
+# Cross-platform smoke train config — ≤ 10 min wall-clock target.
+# `device: auto` picks CUDA → MPS → CPU at runtime so the same config
+# works on M3 (MPS), RTX 3060 WSL2 (CUDA), and A100 (CUDA).
 seed: 0
-device: mps
+device: auto
 data:
   root: data/smoke
   sample_rate: 16000

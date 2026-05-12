@@ -35,6 +35,12 @@ from nanotse.utils.tracker import Tracker
 
 
 def _resolve_device(requested: str) -> torch.device:
+    if requested == "auto":
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
     if requested == "mps":
         if not torch.backends.mps.is_available():
             print("WARNING: MPS unavailable, falling back to CPU", file=sys.stderr)

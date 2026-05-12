@@ -50,6 +50,23 @@ def test_config_loads_repo_a100_yaml() -> None:
     assert cfg.model.name == "nanotse"
 
 
+def test_config_accepts_auto_device(tmp_path: Path) -> None:
+    """`device: auto` is a valid value (resolves to CUDA/MPS/CPU at runtime)."""
+    p = tmp_path / "auto.yaml"
+    p.write_text(
+        yaml.safe_dump(
+            {
+                "device": "auto",
+                "data": {"root": str(tmp_path)},
+                "train": {"steps": 1},
+                "model": {"name": "tdse"},
+            }
+        )
+    )
+    cfg = Config.from_yaml(p)
+    assert cfg.device == "auto"
+
+
 def test_config_rejects_bad_device(tmp_path: Path) -> None:
     p = tmp_path / "bad.yaml"
     p.write_text(
