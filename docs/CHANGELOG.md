@@ -5,6 +5,22 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — MeMo baseline + STFT branch; M3 build complete
+**Added — MeMo baseline (paper-arch placeholder)**
+- `nanotse/models/baselines/memo.py` (`MeMoBaseline`, `SpeakerBank`, `ContextBank`, `MeMoState`): Li et al. 2025's architecture port. N=1 FIFO bank replacement, self-enrollment from post-backbone features, reuses our `AudioFrontend` + `ChunkAttnBackbone` + `TSEHead`. Audio-only by default; `with_visual=True` adds `VisualFrontend` + a broadcast visual feature into the fusion concat.
+- `tests/test_memo.py` (9 tests): forward shape (audio + AV), bank push/retrieve shape, cold-start zero behavior, state chains across `forward_chunk`, differentiability.
+- **Scope note:** paper-grade reproduction (≥ 9.85 dB SI-SNR on Impaired-Visual) is **deferred to 3060/A100** — needs PAR 2-stage training + impairment-visual augmentation, neither runnable on M3 in a meaningful way. The architecture is here so the W5 ablation harness (NamedSlotMemory vs MeMo banks) can swap them with one constructor call.
+
+**Added — STFT branch in AudioFrontend**
+- `branch: Literal["conv1d", "stft"] = "conv1d"` selector. STFT path uses `n_fft=kernel, hop_length=stride, win_length=kernel` with a Hann window (registered as a non-persistent buffer so it moves with `.to(device)`), log-magnitude, then a linear projection to `d_model`. Output truncated to `T // stride` frames to align with the Conv1D path so `TSEHead`'s decoder still produces the right length.
+- 4 new tests in `tests/test_audio_frontend.py`: shape contract (1 s + 4 s), differentiability, invalid-branch rejection.
+
+**Decisions** (no-ask)
+- **MeMo retrieval simplified to N=1** with mean-pool then linear projection. Paper has self-attention over slots (Eq. 3-4) but the N=1 default makes that trivially the identity. Multi-slot retrieval will land when we ablate N > 1.
+- **MeMo and NanoTSE share the audio/visual/backbone/head modules** rather than each having its own. Single source of truth for the audio path; only the memory mechanism differs.
+- **STFT window as non-persistent buffer** — moves with `.to(device)` automatically without bloating the checkpoint.
+- **No exact STFT round-trip via iSTFT.** `TSEHead`'s `ConvTranspose1d` decoder isn't an inverse STFT; for the STFT branch it acts as a learned upsampler. Good enough for the alternative-frontend ablation row; if we ever need a STFT-iSTFT pair, that's a new module.
+
 ### 2026-05-12 — train.py auto-uses real data; AV latency benched
 **Changed**
 - `scripts/train.py` now auto-detects whether to use `VoxCeleb2MixDataset` (real) or `SyntheticAVMixDataset` (fallback) based on whether `data/smoke/manifest.json` exists. `make smoke` switches paths transparently. Prints the chosen data source.

@@ -81,7 +81,10 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - [x] **Real-speech 8-clip overfit gate cleared on M3 MPS:**
       baseline +1.79 dB → final +19.73 dB, **SI-SDRi = +17.94 dB**
       (target ≥ +10 dB). Test: `tests/test_w24_real_speech_gate.py`.
-- [ ] STFT branch alongside Conv1D in `AudioFrontend` (optional).
+- [x] STFT branch alongside Conv1D in `AudioFrontend`. Pick via
+      `branch="conv1d" | "stft"`. STFT uses `n_fft=320, hop=160`, log-mag
+      → linear projection. Same output shape so the rest of the model
+      doesn't care which branch is plugged in.
 - **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech) — **DONE ✓**;
   smoke ≥ +1 dB.
 
@@ -99,9 +102,12 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - [x] **W3.5** Full `NanoTSE` assembly. `with_visual` constructor flag
       switches between audio-only (W2.4 path) and full AV (W3.5 path).
       `forward(audio, video=None) -> (tse_out, asd_logits | None)`.
-- [ ] MeMo reimpl per `av-listen/docs/MEMO_REIMPL_PLAN.md`:
-      SpeakerBank, ContextBank, MeMoWrapper.forward_{chunk,offline}.
-      Deferred to 3060/real-data — needs validation against paper's 9.85 dB.
+- [x] MeMo baseline architecture (`nanotse/models/baselines/memo.py`):
+      `SpeakerBank` + `ContextBank` + `MeMoBaseline`. N=1 FIFO replacement,
+      self-enrollment from backbone features. Passes forward/backward
+      tests on M3. **Paper-grade reproduction (≥ 9.85 dB on Impaired-Visual)
+      deferred to 3060** — needs PAR 2-stage training + visual impairment
+      augmentation, neither runnable on M3.
 - [x] Loss library: `slot_infonce`, `asd_bce`, `slot_consistency` written
       in `nanotse/losses/` with tests. Not yet wired into training (synthetic
       data has no real speaker identity for InfoNCE / no GT for ASD).

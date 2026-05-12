@@ -41,3 +41,33 @@ def test_audio_frontend_differentiable() -> None:
     af(x).sum().backward()
     assert x.grad is not None
     assert torch.isfinite(x.grad).all()
+
+
+def test_audio_frontend_stft_branch_shape() -> None:
+    """STFT branch must produce the same shape as Conv1D branch."""
+    af = AudioFrontend(d_model=256, branch="stft")
+    x = torch.randn(2, 16000)
+    y = af(x)
+    assert y.shape == (2, 100, 256)
+
+
+def test_audio_frontend_stft_smoke_config_4s() -> None:
+    af = AudioFrontend(branch="stft")
+    x = torch.randn(1, 16000 * 4)
+    y = af(x)
+    assert y.shape == (1, 400, 256)
+
+
+def test_audio_frontend_stft_differentiable() -> None:
+    af = AudioFrontend(d_model=64, branch="stft")
+    x = torch.randn(1, 1600, requires_grad=True)
+    af(x).sum().backward()
+    assert x.grad is not None
+    assert torch.isfinite(x.grad).all()
+
+
+def test_audio_frontend_rejects_bad_branch() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="branch must be"):
+        AudioFrontend(branch="mfcc")  # type: ignore[arg-type]
