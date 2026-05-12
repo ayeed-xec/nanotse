@@ -24,6 +24,7 @@ data/*
 !data/smoke/
 data/smoke/*
 !data/smoke/.gitkeep
+!data/smoke/manifest.json
 runs/*
 !runs/.gitkeep
 checkpoints/
@@ -48,4 +49,3 @@ checkpoints/
 *.swp
 *.swo
 .DS_Store
-data

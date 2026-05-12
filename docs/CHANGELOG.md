@@ -5,6 +5,34 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — W2.5: real VoxCeleb2-mix loader + W2.4 real-speech gate cleared
+**Fetched (M3, one-time)**
+- Ran `scripts/data_prep/fetch_voxceleb2_mix_smoke.py --num-train-speakers 3 --num-val-speakers 2 --clips-per-speaker 2`. 5 speakers (`id00017, id00061, id00081, id00154, id00419`), 10 clips, 2.2 MB streamed from HF.
+- Tar layout confirmed: `./audio_clean/test/idXXXXX/<video_id>/<NNNNN>.wav`. The fetch script's `_speaker_of` parser works as designed.
+- `data/smoke/manifest.json` committed (audio wavs are gitignored).
+
+**Added — real loader**
+- `nanotse/data/voxceleb2_mix_loader.py` (`VoxCeleb2MixDataset`): reads `manifest.json`, picks a target speaker + a *different* interferer speaker (deterministic via `seed + idx`), scales the interferer to a random SNR in `(0, 5)` dB, returns the same `AVMixSample` contract as `SyntheticAVMixDataset`.
+- `tests/test_voxceleb2_loader.py`: 8 tests covering shape contract, **train/val speaker-disjoint stratified-split regression**, `mix = target + interferer` within float tolerance, non-zero interferer (different-speaker confirmation), determinism, missing-manifest error, single-speaker rejection.
+
+**Verified — W2.4 real-speech 8-clip overfit gate**
+- `tests/test_w24_real_speech_gate.py` (marked `@pytest.mark.slow`):
+  - device: M3 MPS
+  - model: `NanoTSE(with_visual=False)`, ~1.8 M params
+  - 8 real clips × 4-sec center-cropped to 2.0 s
+  - 250 epochs of AdamW @ lr=1e-3
+  - **baseline +1.79 dB → final +19.73 dB → SI-SDRi = +17.94 dB**
+  - **Target: ≥ +10 dB → PASSED with 1.8× margin**
+  - runtime ~20 s on M3 MPS
+
+This is the **first paper-grade measurement** in the project. The architecture genuinely learns speech structure from real audio; the synthetic plumbing tests verified the wires, but only real audio + the +10 dB gate verifies the model.
+
+**Decisions** (no-ask, logged)
+- **Face frames remain synthetic** for now. Only `audio_clean_part_aa` was fetched; `orig_part_*` (40+ GB) hasn't been pulled. Audio-only NanoTSE (`with_visual=False`) is the right path to validate W2.4. AV-path validation needs real face data — that's a follow-up fetch when bandwidth + disk permit.
+- **`snr_db_range=(0.0, 5.0)`** — moderate-difficulty interferer level. Easy to overfit (verified by the +17.94 dB result); will tune for full-data runs.
+- **Manifest committed, wavs gitignored.** Manifest is ~1 KB, defines the smoke split. Wavs (~2.2 MB) shouldn't be in git history.
+- **`torch.rand(...) * (hi - lo) + lo`** for SNR sampling — `torch.empty(()).uniform_(low, high, generator=gen)` errors on size kwarg in this torch version; this is the portable form.
+
 ### 2026-05-12 — Multi-task loss library, LRU eviction, IBA metric (all M3-validatable pieces)
 **Added — losses (library functions, not yet wired into training)**
 - `nanotse/losses/infonce.py` (`slot_infonce`) — contrastive over per-sample slot embeddings with speaker_id labels; pull same-speaker close, push different-speaker apart. Handles batches with no positive pairs (returns 0). NaN-safe at masked diagonal.

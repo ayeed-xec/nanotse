@@ -1,0 +1,46 @@
+{
+  "train": [
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00001.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00002.wav"
+    },
+    {
+      "speaker_id": "id00061",
+      "wav": "audio/id00061/00001.wav"
+    },
+    {
+      "speaker_id": "id00061",
+      "wav": "audio/id00061/00002.wav"
+    },
+    {
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00001.wav"
+    },
+    {
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00002.wav"
+    }
+  ],
+  "val": [
+    {
+      "speaker_id": "id00419",
+      "wav": "audio/id00419/00001.wav"
+    },
+    {
+      "speaker_id": "id00419",
+      "wav": "audio/id00419/00002.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00001.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00002.wav"
+    }
+  ]
+}

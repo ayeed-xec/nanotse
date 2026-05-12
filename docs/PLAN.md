@@ -75,10 +75,15 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - [x] **W2.4** `NanoTSE` audio-only assembly wired through `scripts/train.py`
       (`model.name: nanotse`). Bench on MPS / CPU shows ample headroom
       (see `docs/CHANGELOG.md`).
-- [ ] **W2.5** Real `VoxCeleb2MixDataset` (depends on user running fetch
-      script on the 3060 box). STFT branch lands alongside.
-- [ ] Real-speech 8-clip overfit gate: NanoTSE ≥ +10 dB SI-SDRi.
-- **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech); smoke ≥ +1 dB.
+- [x] **W2.5** Real `VoxCeleb2MixDataset` (`nanotse/data/voxceleb2_mix_loader.py`)
+      — reads `data/smoke/manifest.json`, mixes 2 disjoint speakers at random
+      SNR in `(0, 5)` dB. Face frames still synthetic until `orig_part_*` is fetched.
+- [x] **Real-speech 8-clip overfit gate cleared on M3 MPS:**
+      baseline +1.79 dB → final +19.73 dB, **SI-SDRi = +17.94 dB**
+      (target ≥ +10 dB). Test: `tests/test_w24_real_speech_gate.py`.
+- [ ] STFT branch alongside Conv1D in `AudioFrontend` (optional).
+- **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech) — **DONE ✓**;
+  smoke ≥ +1 dB.
 
 ### W3 — MeMo baseline + NanoTSE slot memory (M3)
 - [x] **W3.1** `VisualFrontend` — per-frame CNN encoder, 25 fps video
