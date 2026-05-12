@@ -27,6 +27,7 @@ import torch
 from torch import nn
 
 from nanotse.models.baselines.tdse import TDSEBaseline
+from nanotse.models.nanotse import NanoTSE
 
 
 def _resolve_device(name: str) -> torch.device:
@@ -80,10 +81,15 @@ def bench(
 
 # Models to bench. Add new rows as modules land.
 CONFIGS: list[tuple[str, Callable[[], nn.Module]]] = [
-    ("TDSEBaseline default (70k params)", lambda: TDSEBaseline()),
+    ("TDSEBaseline default     ", lambda: TDSEBaseline()),
     (
-        "TDSEBaseline small  (25k params)",
+        "TDSEBaseline small       ",
         lambda: TDSEBaseline(n_feat=64, bottleneck=32, n_blocks=3),
+    ),
+    ("NanoTSE audio-only (W2.4)", lambda: NanoTSE()),
+    (
+        "NanoTSE audio-only small ",
+        lambda: NanoTSE(d_model=128, n_heads=2, n_layers=1, cache_len=100),
     ),
 ]
 

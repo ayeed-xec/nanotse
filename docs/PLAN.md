@@ -65,11 +65,19 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
       ~70 k params, encoder → bottleneck → dilated TCN × 4 → mask → decoder.
 - [x] Forward shape + 8-clip overfit plumbing test (synthetic gaussian:
       loss decreases ≥ 1 dB; the +10 dB bar applies to real speech).
-- [ ] Audio frontend proper (STFT branch alongside Conv1D encoder).
-- [ ] Visual frontend (mouth-ROI or pre-extracted AV-HuBERT).
-- [ ] Dual-cache cross-modal fusion (port from `RIA/dualcache_avtse`).
-- [ ] Mamba-2 backbone (CUDA) + chunk-attention backbone (MPS).
-- [ ] Real VoxCeleb2-mix loader (depends on user running fetch script).
+- [x] **W2.1** `AudioFrontend` — Conv1D encoder, 16 kHz → 100 Hz, clean
+      round-trip with TSEHead (`(kernel-stride)/2` padding).
+- [x] **W2.2** `ChunkAttnBackbone` — causal self-attention with rolling
+      KV cache. CPU / MPS / CUDA compatible. forward_chunk ≡ forward
+      within 1e-5; chunked-equivalence tested.
+- [x] **W2.3** `TSEHead` — mask projection + ConvTranspose1d decoder,
+      shape-exact inverse of `AudioFrontend`.
+- [x] **W2.4** `NanoTSE` audio-only assembly wired through `scripts/train.py`
+      (`model.name: nanotse`). Bench on MPS / CPU shows ample headroom
+      (see `docs/CHANGELOG.md`).
+- [ ] **W2.5** Real `VoxCeleb2MixDataset` (depends on user running fetch
+      script on the 3060 box). STFT branch lands alongside.
+- [ ] Real-speech 8-clip overfit gate: NanoTSE ≥ +10 dB SI-SDRi.
 - **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech); smoke ≥ +1 dB.
 
 ### W3 — MeMo baseline + NanoTSE slot memory (M3)

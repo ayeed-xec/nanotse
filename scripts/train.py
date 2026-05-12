@@ -25,6 +25,7 @@ from torch.utils.data import DataLoader
 from nanotse.data import SyntheticAVMixDataset
 from nanotse.losses import negative_si_snr, si_snr
 from nanotse.models.baselines.tdse import TDSEBaseline
+from nanotse.models.nanotse import NanoTSE
 from nanotse.utils.config import Config
 from nanotse.utils.tracker import Tracker
 
@@ -46,6 +47,8 @@ def _resolve_device(requested: str) -> torch.device:
 def _build_model(name: str) -> torch.nn.Module:
     if name == "tdse":
         return TDSEBaseline()
+    if name == "nanotse":
+        return NanoTSE()
     raise NotImplementedError(f"model '{name}' not implemented yet -- see docs/PLAN.md")
 
 

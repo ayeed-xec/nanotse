@@ -5,6 +5,44 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — W2.1–W2.4: audio-only NanoTSE wired end-to-end
+**Added**
+- `nanotse/models/frontends/audio_stft.py` (`AudioFrontend`) — learned Conv1D encoder, 16 kHz → 100 Hz at `d_model=256`. With `kernel=320, stride=160, padding=80` the round-trip with `TSEHead` is sample-exact (`T → T/160 → T`).
+- `nanotse/models/backbones/chunk_attn.py` (`ChunkAttnBackbone`) — causal multi-head self-attention with rolling KV cache. CPU / MPS / CUDA compatible. State is a list of `(k_cache, v_cache)` tuples per layer, always passed in/out explicitly. Default `d_model=256, n_heads=4, n_layers=2, cache_len=200` (= 2 s at 100 Hz).
+- `nanotse/models/heads/tse.py` (`TSEHead`) — sigmoid mask projection × encoder output, then `ConvTranspose1d` decoder back to time-domain audio.
+- `nanotse/models/nanotse.py` (`NanoTSE`) — top-level assembly: `AudioFrontend → ChunkAttnBackbone → TSEHead`. Default ~1.8 M params. W3.5 will extend with visual frontend + fusion + slot memory + ASD head without changing the public `forward(audio)` signature.
+- `scripts/train.py` now dispatches on `cfg.model.name in {"tdse", "nanotse"}`.
+- `nanotse/eval/latency_bench.py::CONFIGS` extended with NanoTSE default + small.
+- **18 new tests** across `test_audio_frontend.py`, `test_chunk_attn.py`, `test_tse_head.py`, `test_nanotse_assembly.py`. Includes:
+  - Streaming equivalence: `forward_chunk` (one-shot) ≡ `forward` within 1e-5.
+  - Chunked equivalence: splitting T into chunks + folding state ≡ one-shot.
+  - Causal check: perturbing future tokens does not change past outputs.
+  - Cache truncation: cache stays bounded by `cache_len`.
+  - NanoTSE overfit-on-4-clips plumbing: loss decreases ≥ 1 dB.
+
+**Latency, M3 Pro, p95 per 40 ms chunk (target < 60 ms)**
+
+| Device | Model | p50 | p95 | RTF (p95/40 ms) | Headroom |
+|---|---|---|---|---|---|
+| MPS | TDSE 70k | 2.35 ms | 5.67 ms | 0.14× | 10× |
+| MPS | TDSE 16k | 1.72 ms | 2.78 ms | 0.07× | 22× |
+| MPS | **NanoTSE 1.8M** | 3.99 ms | **4.85 ms** | **0.12×** | **12×** |
+| MPS | NanoTSE 297k | 2.49 ms | 3.29 ms | 0.08× | 18× |
+| CPU | TDSE 70k | 0.36 ms | 0.48 ms | 0.01× | 125× |
+| CPU | TDSE 16k | 0.22 ms | 0.29 ms | 0.01× | 207× |
+| CPU | **NanoTSE 1.8M** | 0.58 ms | **1.05 ms** | **0.03×** | **57×** |
+| CPU | NanoTSE 297k | 0.23 ms | 0.36 ms | 0.01× | 111× |
+
+NanoTSE at the full 1.8 M params still has ~12× headroom on MPS, ~57× on CPU. The visual frontend (W3.1) will add ~5–15 ms on top — still leaves margin.
+
+**Decisions** (no-ask, logged)
+- **`kernel=320, stride=160, padding=80`** in both `AudioFrontend` and `TSEHead`. The `(kernel-stride)/2` padding rule gives a sample-exact `T → T/stride → T` round-trip. Both classes raise `ValueError` if you give them an asymmetric (kernel - stride).
+- **`ChunkAttn` cache truncation** keeps the last `cache_len` frames. Older context is dropped. 2 s of audio context (200 frames at 100 Hz) is plenty for current scenarios; long-session tests will revisit.
+- **Causal mask via index broadcasting** — `(j < cache_offset) | (j - cache_offset <= i)` — instead of `torch.tril` on `(Tq, Tkv)`. Cheaper, MPS-friendly, and the cache offset semantics are explicit in the code.
+- **`forward_chunk` and `forward` both go through the same `_attend` helper**, so the offline / streaming paths cannot diverge silently.
+- **`NanoTSE` constructor mirrors `AudioFrontend` and `ChunkAttnBackbone`** so config changes propagate without rewiring. W3.5 will add visual-side kwargs alongside, not in place of, these.
+- **`configs/smoke.yaml` left on `tdse`** for faster iteration. To smoke-train NanoTSE, edit `model.name: nanotse` (or copy to `configs/smoke_nanotse.yaml`).
+
 ### 2026-05-12 — Latency benchmark
 **Added**
 - `nanotse/eval/latency_bench.py`: streaming forward-pass benchmark. Measures p50/p95/p99/mean/min ms per 40 ms chunk on the current device (auto-picks CUDA → MPS → CPU). Already wired to `make bench`. New modules add a row to the `CONFIGS` list so we catch latency creep as we go.
