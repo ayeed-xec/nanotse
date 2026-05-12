@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Training entrypoint.
 
-Loads a YAML config, builds the requested baseline on synthetic AV data,
-runs N optimizer steps, logs metrics to ``runs/<timestamp>/metrics.jsonl``,
-and saves a final checkpoint.
+Loads a YAML config, builds the requested model, runs N optimizer steps,
+logs metrics to ``runs/<ts>/metrics.jsonl``, and saves the final checkpoint
+(state_dict + cfg + model_kwargs).
 
-W1 status: only the synthetic data path is wired (no real loader yet).
-W2 status: ``tdse`` works; other model names raise NotImplementedError.
+Data source: auto-detected -- if ``cfg.data.root / manifest.json`` exists we
+use the real VoxCeleb2MixDataset, otherwise we fall back to SyntheticAVMixDataset.
+
+Models supported: ``tdse`` (audio-only baseline), ``nanotse`` (full AV with
+slot memory). MeMo + Mamba-2 land via separate scripts once their training
+recipes (PAR, CUDA) come online.
 
 Usage:
     python scripts/train.py --config configs/smoke.yaml
