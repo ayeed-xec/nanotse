@@ -1,0 +1,19 @@
+# M3 Pro Mac smoke train config — ≤ 10 min wall-clock target.
+# Used by every "did this architectural change survive?" check
+# before any A100 escalation.
+seed: 0
+device: mps
+data:
+  root: data/smoke
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 200
+  batch_size: 4
+train:
+  steps: 500
+  lr: 3.0e-4
+  log_every: 20
+  ckpt_every: 250
+model:
+  name: tdse  # placeholder; replaced by `nanotse` once W2 lands the backbone

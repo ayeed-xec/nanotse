@@ -1,0 +1,17 @@
+# Full VoxCeleb2-mix training on A100 80GB (vast.ai spot).
+# Only runs once the current commit has passed the M3 smoke gate.
+seed: 0
+device: cuda
+data:
+  root: /workspace/voxceleb2_mix
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  batch_size: 16
+train:
+  steps: 200000
+  lr: 1.0e-3
+  log_every: 200
+  ckpt_every: 5000
+model:
+  name: nanotse

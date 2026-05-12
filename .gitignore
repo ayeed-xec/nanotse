@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+.env
+*.egg-info/
+build/
+dist/
+
+# tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# data + runs (heavy artefacts; tracked via .gitkeep placeholders)
+data/*
+!data/.gitkeep
+!data/smoke/
+data/smoke/*
+!data/smoke/.gitkeep
+runs/*
+!runs/.gitkeep
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tar
+*.tar.gz
+
+# media
+*.wav
+*.mp3
+*.flac
+*.mp4
+*.avi
+*.mov
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

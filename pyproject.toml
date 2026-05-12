@@ -1,0 +1,116 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nanotse"
+version = "0.0.1"
+description = "Named-slot Audio-visual Network for Online Target Speaker Extraction"
+requires-python = ">=3.11,<3.13"
+license = "MIT"
+authors = [{ name = "Ayeed", email = "ayeedxec@gmail.com" }]
+dependencies = [
+    "torch>=2.4",
+    "torchaudio>=2.4",
+    "numpy>=1.26",
+    "soundfile>=0.12",
+    "librosa>=0.10",
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.8",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "types-PyYAML>=6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["nanotse"]
+
+# ---------------------------------------------------------------------------
+# ruff: format + lint
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle + pyflakes
+    "I",             # isort
+    "UP",            # pyupgrade
+    "B",             # bugbear
+    "SIM",           # simplify
+    "TID",           # tidy imports
+    "PT",            # pytest style
+    "RUF",           # ruff-specific
+    "N",             # pep8-naming
+    "C4",            # comprehensions
+]
+ignore = [
+    "E501",  # line length is handled by the formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803"]  # tests may use non-snake names for clarity
+
+# ---------------------------------------------------------------------------
+# mypy: strict on the nanotse/ package (run via `make type`)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = [
+    "soundfile",
+    "librosa",
+    "librosa.*",
+    "torchaudio",
+    "torchaudio.*",
+    "tqdm",
+    "tqdm.*",
+]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# pytest + coverage
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--cov=nanotse",
+    "--cov-report=term-missing",
+    "--cov-fail-under=0",
+]
+markers = [
+    "slow: long-running test (use -m 'not slow' to skip)",
+    "mps: requires Apple MPS device",
+    "cuda: requires CUDA device",
+    "a100: cloud-only test (skip locally)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["nanotse"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
