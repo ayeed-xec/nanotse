@@ -5,6 +5,43 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — W3.1–W3.5: visual frontend, fusion, named-slot memory, ASD, full AV NanoTSE
+**Added (paper contribution 1 lives in W3.3)**
+- `nanotse/models/frontends/visual_avhubert.py` (`VisualFrontend`) — per-frame CNN, 4 stride-2 convs + `AdaptiveAvgPool2d(1)` + `LayerNorm`. `(B, F, H, W, 3) uint8 @ 25 fps → (B, F, 512)`. AV-HuBERT-frozen lands later as a swap-in.
+- `nanotse/models/fusion/dual_cache.py` (`DualCacheFusion`) — cross-attention: audio queries (100 Hz) attend to a rolling visual KV cache (default 50 frames = 2 s of context). Streaming state is `(k_cache, v_cache)`; offline `forward()` and one-shot `forward_chunk()` are sample-equivalent; progressive-visual chunks are deliberately *more causal* than one-shot (documented + tested).
+- `nanotse/models/memory/slot_attention.py` (`NamedSlotMemory`) — **contribution 1**. Locatello slot competition (softmax over slots), GRU-EMA update, MLP residual. Slot bank persists across `forward_chunk` (state passed in/out). Returns `(augmented_features (B, T, D+S), slots (B, N, S))`. LRU eviction deferred to multi-speaker integration.
+- `nanotse/models/heads/asd.py` (`ASDHead`) — per-(token, slot) logit head; output `(B, T, N)` for BCE supervision against ground-truth active-speaker slot.
+- `nanotse/models/nanotse.py` (`NanoTSE`) extended: `with_visual` constructor flag, optional `video` argument, returns `(tse_out, asd_logits | None)`. Audio-only path (W2.4) preserved.
+- `scripts/train.py`: handles `tuple` return from NanoTSE; defaults to audio-only NanoTSE for now (`with_visual=False`). AV training (passing `batch["face"]` to the model) is the next train-loop change once W2.5 lands real video.
+- **22 new tests** across the four new modules + assembly. Coverage includes:
+  - Shape contracts for all four modules.
+  - **DualCacheFusion oneshot ≡ offline** within 1e-5; chunked-with-full-visual-upfront ≡ oneshot.
+  - **DualCacheFusion progressive-visual streaming is NOT equivalent to oneshot** — documented expected causality.
+  - **NamedSlotMemory persists state across `forward_chunk`** (`state["step"]` increments; slots after ≠ slot_init).
+  - Cache truncation, empty-visual passthrough, slot-memory differentiability.
+  - Full AV `NanoTSE.forward(audio, video)` returns `(tse_out, asd_logits)` with correct shapes.
+
+**Latency, M3 Pro, p95 per 40 ms chunk (audio-only path; AV bench TBD)**
+
+| Device | Model | params | p95 | RTF | Budget |
+|---|---|---|---|---|---|
+| MPS | NanoTSE audio-only | 1.81 M | **4.61 ms** | 0.12× | OK (13× headroom) |
+| MPS | NanoTSE audio-only small | 297 k | 3.48 ms | 0.09× | OK |
+| CPU | NanoTSE audio-only | 1.81 M | **0.63 ms** | 0.02× | OK (95× headroom) |
+| CPU | NanoTSE audio-only small | 297 k | 0.28 ms | 0.01× | OK |
+
+Adding the visual stack will push latency up by ~5–15 ms p95 (VisualFrontend is the heavyweight); AV bench rows get added once the bench harness is extended to pass video tensors.
+
+**Decisions** (no-ask, logged)
+- **`with_visual: bool = True` constructor flag** on NanoTSE. Lets the audio-only smoke train (W2.4) and the AV training (W3.6+) share one class without overloads. Memory cost when `False`: 0 (visual modules never allocated).
+- **`forward(audio, video=None) → (tse_out, asd_logits | None)`** is the public API. Always returns a tuple, even in audio-only mode (then `asd_logits` is `None`). `train.py` unpacks with an `isinstance(out, tuple)` guard so TDSEBaseline still works.
+- **`feat_with_id = slot_to_feat(slot_aug)`** projects `(B, T, D + S)` back to `D` before feeding TSEHead — keeps TSEHead's input dim the same in both audio-only and AV paths. Single TSEHead spec.
+- **Slot-attention softmax over slots, not over inputs** — verified against Locatello et al. 2020 § 2. Each input token's attention sums to 1 across the N slots; aggregation then normalizes per-slot weights over the input axis.
+- **Soft (not hard) slot assignment in the augmented features**: `attn @ slots`, fully differentiable. Hard `argmax` would break gradients.
+- **DualCacheFusion: explicit "progressive ≠ oneshot" test** locks in the streaming-causal contract for visual. Without this test, a future refactor could silently let the streaming path peek at future visual frames and we'd never notice.
+- **No LRU eviction yet.** Slot bank just keeps refining. Eviction lands when we actually run a session with > N speakers and need it.
+- **Bench rows use `with_visual=False`.** Adding AV rows requires the bench to pass a video tensor; that's its own small extension. Filed under "do later when we need AV deployability numbers."
+
 ### 2026-05-12 — W2.1–W2.4: audio-only NanoTSE wired end-to-end
 **Added**
 - `nanotse/models/frontends/audio_stft.py` (`AudioFrontend`) — learned Conv1D encoder, 16 kHz → 100 Hz at `d_model=256`. With `kernel=320, stride=160, padding=80` the round-trip with `TSEHead` is sample-exact (`T → T/160 → T`).

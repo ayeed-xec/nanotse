@@ -48,7 +48,9 @@ def _build_model(name: str) -> torch.nn.Module:
     if name == "tdse":
         return TDSEBaseline()
     if name == "nanotse":
-        return NanoTSE()
+        # Audio-only smoke training. AV training (with video=batch["face"]) lands
+        # in a follow-up sprint with the real VoxCeleb2 loader.
+        return NanoTSE(with_visual=False)
     raise NotImplementedError(f"model '{name}' not implemented yet -- see docs/PLAN.md")
 
 
@@ -108,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
                 break
             mix = batch["mix"].to(device)
             tgt = batch["target"].to(device)
-            est = model(mix)
+            out = model(mix)
+            est = out[0] if isinstance(out, tuple) else out
             loss = negative_si_snr(est, tgt)
             opt.zero_grad()
             loss.backward()
@@ -116,9 +119,9 @@ def main(argv: list[str] | None = None) -> int:
             step += 1
             if step % cfg.train.log_every == 0:
                 with torch.no_grad():
-                    sdr = si_snr(est, tgt).mean().item()
-                tracker.log(step, loss=loss.item(), si_snr_db=sdr)
-                print(f"  step {step:4d}  loss {loss.item():+.3f}  SI-SNR {sdr:+.2f} dB")
+                    sdr_val = si_snr(est, tgt).mean().item()
+                tracker.log(step, loss=loss.item(), si_snr_db=sdr_val)
+                print(f"  step {step:4d}  loss {loss.item():+.3f}  SI-SNR {sdr_val:+.2f} dB")
 
     ckpt = run_dir / "model.pt"
     torch.save({"model": model.state_dict(), "config": cfg.model_dump()}, ckpt)

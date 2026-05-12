@@ -86,10 +86,10 @@ CONFIGS: list[tuple[str, Callable[[], nn.Module]]] = [
         "TDSEBaseline small       ",
         lambda: TDSEBaseline(n_feat=64, bottleneck=32, n_blocks=3),
     ),
-    ("NanoTSE audio-only (W2.4)", lambda: NanoTSE()),
+    ("NanoTSE audio-only (W2.4)", lambda: NanoTSE(with_visual=False)),
     (
         "NanoTSE audio-only small ",
-        lambda: NanoTSE(d_model=128, n_heads=2, n_layers=1, cache_len=100),
+        lambda: NanoTSE(d_model=128, n_heads=2, n_layers=1, cache_len=100, with_visual=False),
     ),
 ]
 

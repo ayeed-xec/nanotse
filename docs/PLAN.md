@@ -81,11 +81,23 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech); smoke ≥ +1 dB.
 
 ### W3 — MeMo baseline + NanoTSE slot memory (M3)
+- [x] **W3.1** `VisualFrontend` — per-frame CNN encoder, 25 fps video
+      `(B, F, H, W, 3) uint8` → `(B, F, 512)` features. AV-HuBERT-frozen
+      lands later; mouth-ROI CNN unblocks W3.2–W3.5 now.
+- [x] **W3.2** `DualCacheFusion` — cross-attention with rolling visual KV
+      cache. CPU/MPS/CUDA. Streaming-equivalence tests (oneshot vs
+      progressive-visual chunks) verify causality on visual stream.
+- [x] **W3.3** `NamedSlotMemory` — Locatello slot competition (softmax
+      over slots) + GRU update + MLP residual. Slot bank persists across
+      `forward_chunk`. **Contribution 1 lives here.**
+- [x] **W3.4** `ASDHead` — per-slot active-speaker logits over time.
+- [x] **W3.5** Full `NanoTSE` assembly. `with_visual` constructor flag
+      switches between audio-only (W2.4 path) and full AV (W3.5 path).
+      `forward(audio, video=None) -> (tse_out, asd_logits | None)`.
 - [ ] MeMo reimpl per `av-listen/docs/MEMO_REIMPL_PLAN.md`:
       SpeakerBank, ContextBank, MeMoWrapper.forward_{chunk,offline}.
-- [ ] Port `av-listen/av_listen/memory/slot_attention.py` →
-      `nanotse/models/memory/`, adapt face+voice joint key.
-- [ ] Wire InfoNCE + slot-consistency losses.
+- [ ] Wire InfoNCE + ASD-BCE + slot-consistency losses.
+- [ ] LRU eviction across slots (defer until multi-speaker integration).
 - **Gate:** MeMo ≥ TDSE+1 dB; NanoTSE ≥ MeMo+0.5 dB on M3 smoke.
 
 ### W4 — first A100 burst
