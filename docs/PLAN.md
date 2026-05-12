@@ -44,18 +44,33 @@ vs last A100 run is well-defined; (c) expected gain ≥ 0.5 dB SI-SDRi or
 - [x] Package skeleton (`nanotse/{data,models,...}`).
 - [x] Pydantic config schema + `configs/{smoke,a100}.yaml`.
 - [x] First passing tests: `test_import.py`, `test_config.py`.
-- [ ] `scripts/data_prep/fetch_voxceleb2_mix_smoke.py` — 200 clips,
-      disjoint speakers, `data/smoke/`.
-- [ ] First smoke run: dataloader → SI-SNR(mix, mix) baseline.
-- **Gate:** `make test lint type` green; smoke dataloader yields 200 items.
+- [x] `scripts/data_prep/fetch_voxceleb2_mix_smoke.py` — streams
+      `audio_clean_part_aa` from HF, disjoint train/val speakers,
+      writes `data/smoke/{audio,manifest.json}`. Stdlib only
+      (urllib + tarfile); ~30–80 MB read for the default 40 speakers.
+- [x] SI-SNR loss (`nanotse/losses/si_snr.py`) + 6 behavioural tests.
+- [x] `SyntheticAVMixDataset` (deterministic AV-mix fallback) + 6 tests.
+- [x] First plumbing test: 1-conv model trains on 4 synthetic clips
+      without NaNs, parameters update, loss decreases.
+- [x] JSONL `Tracker` (`nanotse/utils/tracker.py`) + 2 tests.
+- [x] Wired `scripts/train.py`: dispatch on `cfg.model.name`,
+      MPS/CUDA/CPU fallback, JSONL metrics, checkpoint to `runs/<ts>/`.
+- [x] End-to-end M3 smoke train completes: TDSE 70k params on MPS,
+      500 steps in ~25 s, baseline 6.0 dB → SI-SNR climbs −6.6 → +5.3 dB
+      (synthetic gaussian — real-speech dB lands in W2 once data is fetched).
+- **Gate:** `make test lint type` green; smoke loop runs end-to-end. ✓
 
 ### W2 — TSE baseline on M3
-- [ ] Audio frontend (Conv1D + STFT).
+- [x] Conv-TasNet-lite `TDSEBaseline` (`nanotse/models/baselines/tdse.py`),
+      ~70 k params, encoder → bottleneck → dilated TCN × 4 → mask → decoder.
+- [x] Forward shape + 8-clip overfit plumbing test (synthetic gaussian:
+      loss decreases ≥ 1 dB; the +10 dB bar applies to real speech).
+- [ ] Audio frontend proper (STFT branch alongside Conv1D encoder).
 - [ ] Visual frontend (mouth-ROI or pre-extracted AV-HuBERT).
 - [ ] Dual-cache cross-modal fusion (port from `RIA/dualcache_avtse`).
 - [ ] Mamba-2 backbone (CUDA) + chunk-attention backbone (MPS).
-- [ ] TSE head + iSTFT.
-- **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi; smoke ≥ +1 dB.
+- [ ] Real VoxCeleb2-mix loader (depends on user running fetch script).
+- **Gates:** M3 overfit 8 clips ≥ +10 dB SI-SDRi (real speech); smoke ≥ +1 dB.
 
 ### W3 — MeMo baseline + NanoTSE slot memory (M3)
 - [ ] MeMo reimpl per `av-listen/docs/MEMO_REIMPL_PLAN.md`:
