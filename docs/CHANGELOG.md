@@ -5,6 +5,17 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-12 — Architecture spec
+**Added**
+- [docs/ARCHITECTURE.md](ARCHITECTURE.md) rewritten from stub into a real contract: end-to-end ASCII data-flow diagram with concrete shapes; one row per planned module with file path, I/O, and streaming-state type; streaming `init_state` / `forward_chunk` interface; multi-task loss schedule with add-when-needed order; sprint-level W2.1 → W4 implementation gates; explicit "what is NOT in scope" guard against scope creep (no cross-session persistence, no far-field pivot, no framework layer, no premature abstractions).
+
+**Decisions** (no-ask, logged)
+- **No new code, no new modules** — design-only update. Modules land per the sprint table, one at a time, each gated by its own test.
+- **Constants pinned in one table** — `sample_rate=16k`, `fps=25`, audio 100 Hz, chunk 40 ms, `N=16`, `D=256`, `Dv=512`, `S=256`. These shape every module; pin them here so they aren't redefined per-module.
+- **Streaming contract is the only abstraction** — three modules genuinely share the `init_state`/`forward_chunk` shape (`DualCacheFusion`, `NamedSlotMemory`, `ChunkAttnBackbone`). Anything below three-callers does NOT get abstracted.
+- **PCGrad deferred** — not added speculatively; only wired in if training shows loss conflicts (gradient cosine via `Tracker`).
+- **No Pydantic schema changes yet** — model-knob fields (`n_slots`, `slot_dim`, `backbone`, etc.) get added to `nanotse/utils/config.py` when the corresponding module lands, not in advance.
+
 ### 2026-05-12 — W1 finish + W2 TDSE baseline
 **Added**
 - `nanotse/utils/tracker.py` — append-only JSONL `Tracker`. Every run writes `runs/<ts>/metrics.jsonl`; future commits compare JSONL streams to enforce the "no silent regressions" rule.
