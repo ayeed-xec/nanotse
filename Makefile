@@ -40,6 +40,10 @@ type: ## mypy --strict on the nanotse package
 bench: ## Streaming latency benchmark (p50/p95/p99 chunk-latency)
 	$(PYTHON) -m nanotse.eval.latency_bench
 
+diagnose: ## Save mix/target/estimate wavs + SI-SDRi from a ckpt. Pass CKPT=path/to/model.pt
+	@if [ -z "$$CKPT" ]; then echo "ERROR: pass CKPT=runs/<ts>/model.pt"; exit 1; fi
+	$(PYTHON) scripts/diagnose.py --ckpt $$CKPT
+
 train-a100: ## Submit full-data training to a vast.ai A100 (requires NANOTSE_A100_HOST)
 	@if [ -z "$$NANOTSE_A100_HOST" ]; then echo "ERROR: set NANOTSE_A100_HOST"; exit 1; fi
 	$(PYTHON) scripts/train.py --config configs/a100.yaml --remote $$NANOTSE_A100_HOST

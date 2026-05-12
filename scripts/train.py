@@ -142,7 +142,15 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  step {step:4d}  loss {loss.item():+.3f}  SI-SNR {sdr_val:+.2f} dB")
 
     ckpt = run_dir / "model.pt"
-    torch.save({"model": model.state_dict(), "config": cfg.model_dump()}, ckpt)
+    model_kwargs: dict[str, object] = {"with_visual": True} if cfg.model.name == "nanotse" else {}
+    torch.save(
+        {
+            "model": model.state_dict(),
+            "config": cfg.model_dump(),
+            "model_kwargs": model_kwargs,
+        },
+        ckpt,
+    )
     print(f"\nsaved {ckpt.relative_to(repo_root)}")
     return 0
 
