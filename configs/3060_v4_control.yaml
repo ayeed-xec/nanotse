@@ -1,0 +1,50 @@
+# 3060 run-4 control: full architecture, but with EMA decay 0.99 (vs v3's 0.999).
+#
+# Purpose: isolate the EMA-decay effect from architecture changes. If this run
+# beats v3 at the same effective step count, the EMA was the bottleneck. If it
+# matches v3 within noise, the EMA fix is real but not load-bearing.
+#
+# Differences from configs/3060_v3.yaml:
+#   - ema_decay: 0.999 -> 0.99   (val readable from step ~160 instead of ~2500)
+#   - val_every: 500 -> 250      (since val is meaningful sooner)
+#   - with_asd: false            (compute saving; ASD currently has weight 0 anyway)
+#
+# Manifest: assumes face_ok-filtered data/v2/manifest.json (v3 already applied it).
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 8
+train:
+  steps: 12500
+  lr: 5.0e-4
+  log_every: 25
+  ckpt_every: 1250
+  val_every: 250
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 250
+  min_lr_ratio: 0.05
+  ema_decay: 0.99
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 4
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true
+  with_asd: false

@@ -15,5 +15,10 @@ train:
   lr: 3.0e-4
   log_every: 20
   ckpt_every: 250
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1     # slot-identity contrastive, uses VoxCeleb2 speaker_id
+    asd: 0.0         # off until real per-frame ASD GT (W7-8)
+    consistency: 0.0 # off until multi-window dataset (W5-6 IBA work)
 model:
   name: nanotse  # full AV NanoTSE with visual + slot memory (W3.5)

@@ -1,0 +1,30 @@
+# Real-data training on the RTX 3060 Laptop (6 GB VRAM) WSL2 box.
+# Uses the scaled audio corpus at data/full/ (44 train + 10 val speakers,
+# 13.5k train clips, 2.7k val clips) extracted from VoxCeleb2-mix part_aa.
+# Visual stream is still synthetic-face placeholders until Phase 3 lands.
+seed: 0
+device: auto
+data:
+  root: data/full
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 8000  # ~10 min wall on 3060 at 1.8 sps; covers ~60% of train wavs/epoch
+  batch_size: 8
+train:
+  steps: 8000
+  lr: 5.0e-4
+  log_every: 50
+  ckpt_every: 1000
+  val_every: 500
+  val_clips: 200       # held-out 10 speakers x cycled mixes
+  grad_clip: 5.0
+  snr_db_low: -5.0     # wider SNR range than the 0..5 dB smoke
+  snr_db_high: 10.0
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1       # active every batch via stratified speaker sampler
+    asd: 0.0
+    consistency: 0.0
+model:
+  name: nanotse

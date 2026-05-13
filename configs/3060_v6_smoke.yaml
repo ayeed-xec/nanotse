@@ -1,0 +1,50 @@
+# 3060 GPU smoke for the 18.75M-param model + full v6 loss stack.
+# Goals: (a) verify VRAM fit on 6GB, (b) verify GPU throughput, (c) see val signal
+# from the bigger model on real data. ~25-35 min wall.
+#
+# Sized conservatively: batch=2 + accum=4 = effective_batch=8 (vs a100_v1's 32).
+# Smoke only -- the full quality comparison happens on A100.
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 2000
+  batch_size: 2
+train:
+  steps: 500
+  lr: 5.0e-4
+  log_every: 20
+  ckpt_every: 500
+  val_every: 250
+  val_clips: 100
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 50
+  min_lr_ratio: 0.05
+  ema_decay: 0.99
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 4
+  precision: fp32
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+    mag_stft: 0.5
+    mel: 0.3
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true
+  with_asd: false
+  d_model: 512
+  n_layers: 4
+  n_heads: 8

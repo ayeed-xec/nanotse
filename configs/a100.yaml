@@ -13,5 +13,10 @@ train:
   lr: 1.0e-3
   log_every: 200
   ckpt_every: 5000
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0          # flip on with W7-8 ASD GT
+    consistency: 0.0  # flip on with W5-6 multi-window IBA work
 model:
   name: nanotse

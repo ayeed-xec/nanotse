@@ -75,6 +75,11 @@ def _infer_with_visual(state_dict: dict[str, Any]) -> bool:
     return any(k.startswith("visual_frontend.") for k in state_dict)
 
 
+def _infer_with_enrollment(state_dict: dict[str, Any]) -> bool:
+    """Detect whether the saved checkpoint had the enrollment encoder."""
+    return any(k.startswith("enrollment_encoder.") for k in state_dict)
+
+
 def diagnose(
     ckpt_path: Path,
     out_dir: Path,
@@ -105,9 +110,13 @@ def diagnose(
         if isinstance(ckpt, dict) and "model_kwargs" in ckpt:
             model_kwargs = dict(ckpt["model_kwargs"])
         else:
-            model_kwargs = {"with_visual": _infer_with_visual(state_dict)}
+            model_kwargs = {
+                "with_visual": _infer_with_visual(state_dict),
+                "with_enrollment": _infer_with_enrollment(state_dict),
+            }
 
     has_visual = bool(model_kwargs.get("with_visual", False))
+    has_enrollment = bool(model_kwargs.get("with_enrollment", False))
     model = NanoTSE(**model_kwargs)
     model.load_state_dict(state_dict)
     model = model.to(dev).eval()
@@ -125,11 +134,9 @@ def diagnose(
             target = s["target"].unsqueeze(0).to(dev)
             interferer = s["interferer"].unsqueeze(0).to(dev)
 
-            if has_visual:
-                video = s["face"].unsqueeze(0).to(dev)
-                out = model(mix, video)
-            else:
-                out = model(mix)
+            video = s["face"].unsqueeze(0).to(dev) if has_visual else None
+            enroll = s["enrollment"].unsqueeze(0).to(dev) if has_enrollment else None
+            out = model(mix, video, enroll)
             est = out[0] if isinstance(out, tuple) else out
 
             baseline_db = float(si_snr(mix, target).mean().item())

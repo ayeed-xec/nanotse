@@ -1,0 +1,37 @@
+# Next-gen 3060 training: full audio + real lips + Tier-2/3 improvements.
+# Used by scripts/post_train_chain.sh stage 5 after data fetches complete.
+seed: 0
+device: auto
+data:
+  root: data/full_v2          # populated by stages 2-4 of post_train_chain.sh
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000            # cycles the larger corpus deeply over 50k steps
+  batch_size: 8
+train:
+  steps: 50000
+  lr: 5.0e-4
+  log_every: 100
+  ckpt_every: 5000
+  val_every: 2000
+  val_clips: 500              # bigger val set with the scaled corpus
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 1000          # Tier-2: linear warmup, then cosine decay to min_lr_ratio
+  min_lr_ratio: 0.05
+  ema_decay: 0.999            # Tier-2: EMA for val + best.pt
+  num_workers: 4              # DataLoader prefetch workers (CPU subprocesses)
+  pin_memory: true            # pinned host memory -> faster GPU transfer
+  persistent_workers: true    # avoid worker startup cost between epochs
+  prefetch_factor: 2
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1               # active every batch via stratified sampler
+    asd: 0.0                   # dormant: real per-frame GT lands in W7-8
+    consistency: 0.0           # deferred (clip-split halves throughput; defer to W5-6)
+model:
+  name: nanotse
+  with_visual: true            # uses real mouth-ROI cache when populated
+  with_enrollment: true        # SpEx-style audio cue from a different clip of same speaker

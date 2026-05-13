@@ -21,6 +21,7 @@ class AVMixSample(TypedDict):
     target: torch.Tensor  # (T,)        float32 @ sample_rate (the speaker we want)
     interferer: torch.Tensor  # (T,)        float32 @ sample_rate
     face: torch.Tensor  # (F, H, W, 3) uint8  @ fps        (target speaker face)
+    enrollment: torch.Tensor  # (T,)  float32 @ sample_rate (different clip, same speaker)
     speaker_id: int
     mix_id: int
 
@@ -83,11 +84,16 @@ class SyntheticAVMixDataset(Dataset[AVMixSample]):
 
         speaker_id = int(torch.randint(0, 1_000_000, (1,), generator=gen).item())
 
+        # Synthetic enrollment: another random gaussian (placeholder for the
+        # real enrollment clip that VoxCeleb2MixDataset returns).
+        enrollment = torch.randn(self.clip_samples, generator=gen)
+
         return AVMixSample(
             mix=mix,
             target=target,
             interferer=interferer,
             face=face,
+            enrollment=enrollment,
             speaker_id=speaker_id,
             mix_id=idx,
         )

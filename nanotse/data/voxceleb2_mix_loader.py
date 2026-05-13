@@ -1,14 +1,19 @@
-"""VoxCeleb2-mix real loader: reads ``data/smoke/manifest.json`` + wavs.
+"""VoxCeleb2-mix real loader: reads ``<root>/manifest.json`` + wavs.
 
 W2.5 of the sprint plan. Pairs target + interferer clips from disjoint
 speakers, mixes at random SNR in ``snr_db_range``. Returns the same
 ``AVMixSample`` contract as the synthetic dataset, so model + train code
 swap in transparently.
 
-**Face frames are still synthetic placeholders.** Only `audio_clean_part_aa`
-has been fetched (audio only). Real face frames arrive when we fetch
-``orig_part_aa`` or run mouth-ROI extraction; until then the visual stack
-processes deterministic random uint8 frames.
+**Face frames:** auto-uses real mouth-ROI cache at
+``<root>/faces/<spk>/*.npz`` (produced by
+``scripts/data_prep/extract_mouth_roi.py``). The per-sample face is
+deterministically selected from the target speaker's available .npz
+files based on ``idx`` so the same item always yields the same face --
+important for reproducibility. If the cache is absent or the picked .npz
+holds zero frames, we silently fall back to deterministic random uint8
+placeholders (the pre-W3.x behaviour, kept so audio-only smoke tests
+still pass without the visual data).
 """
 
 from __future__ import annotations
@@ -79,6 +84,34 @@ class VoxCeleb2MixDataset(Dataset[AVMixSample]):
     def __len__(self) -> int:
         return self.num_items
 
+    def target_speaker_of(self, idx: int) -> int:
+        """Deterministic target-speaker index for a given dataset position.
+
+        Mirrors the per-item ``manual_seed(self.seed + idx)`` used inside
+        ``__getitem__`` so a sampler can group same-speaker indices without
+        materialising the whole dataset first.
+        """
+        if idx < 0 or idx >= self.num_items:
+            raise IndexError(idx)
+        gen = torch.Generator().manual_seed(self.seed + idx)
+        return int(torch.randint(0, len(self.speakers), (1,), generator=gen).item())
+
+    def speakers_with_face_cache(self) -> set[int]:
+        """Subset of self.speakers (by index) that have at least one .npz under faces/.
+
+        Useful when building a sampler that prefers AV-able speakers so the
+        visual stream sees real lip motion most batches instead of zero-padded
+        fallbacks.
+        """
+        faces_root = self.root / "faces"
+        if not faces_root.exists():
+            return set()
+        out: set[int] = set()
+        for i, spk in enumerate(self.speakers):
+            if any((faces_root / spk).glob("*.npz")):
+                out.add(i)
+        return out
+
     def _load_wav(self, rel_path: str) -> torch.Tensor:
         path = self.root / rel_path
         arr, sr = sf.read(path)
@@ -99,9 +132,18 @@ class VoxCeleb2MixDataset(Dataset[AVMixSample]):
 
         tgt_spk_i = int(torch.randint(0, len(self.speakers), (1,), generator=gen).item())
         tgt_spk = self.speakers[tgt_spk_i]
-        tgt_clip = self.by_speaker[tgt_spk][
-            int(torch.randint(0, len(self.by_speaker[tgt_spk]), (1,), generator=gen).item())
-        ]
+        tgt_clips_all = self.by_speaker[tgt_spk]
+        tgt_clip_idx = int(torch.randint(0, len(tgt_clips_all), (1,), generator=gen).item())
+        tgt_clip = tgt_clips_all[tgt_clip_idx]
+
+        # Enrollment: a *different* clip from the same speaker. Falls back to
+        # the same clip with a shifted crop if the speaker has only one clip.
+        if len(tgt_clips_all) > 1:
+            other_indices = [i for i in range(len(tgt_clips_all)) if i != tgt_clip_idx]
+            enroll_pos = int(torch.randint(0, len(other_indices), (1,), generator=gen).item())
+            enroll_clip = tgt_clips_all[other_indices[enroll_pos]]
+        else:
+            enroll_clip = tgt_clip
 
         # interferer speaker must differ from target
         others = [s for s in self.speakers if s != tgt_spk]
@@ -112,6 +154,7 @@ class VoxCeleb2MixDataset(Dataset[AVMixSample]):
 
         target = self._crop_or_pad(self._load_wav(tgt_clip))
         interferer = self._crop_or_pad(self._load_wav(intf_clip))
+        enrollment = self._crop_or_pad(self._load_wav(enroll_clip))
 
         lo, hi = self.snr_db_range
         snr_db = float((torch.rand((), generator=gen) * (hi - lo) + lo).item())
@@ -122,19 +165,47 @@ class VoxCeleb2MixDataset(Dataset[AVMixSample]):
 
         mix = target + interferer
 
-        face = torch.randint(
-            0,
-            256,
-            (self.clip_frames, self.face_size, self.face_size, 3),
-            generator=gen,
-            dtype=torch.uint8,
-        )
+        face = self._load_face(tgt_spk, idx, gen)
 
         return AVMixSample(
             mix=mix,
             target=target,
             interferer=interferer,
             face=face,
+            enrollment=enrollment,
             speaker_id=tgt_spk_i,
             mix_id=idx,
         )
+
+    def _load_face(self, spk: str, idx: int, gen: torch.Generator) -> torch.Tensor:
+        """Real mouth-ROI cache when present; zero fallback (NOT random) when missing.
+
+        Zero frames are neutral: they propagate cleanly through the visual encoder
+        without injecting per-clip random bias into the training signal. The
+        previous random-uint8 fallback effectively trained the model to ignore
+        the visual stream on the (currently many) clips without face cache.
+        """
+        spk_faces = self.root / "faces" / spk
+        if spk_faces.exists():
+            npzs = sorted(spk_faces.glob("*.npz"))
+            if npzs:
+                chosen = npzs[idx % len(npzs)]
+                frames = np.load(chosen)["frames"]  # (F, H, W, 3) uint8
+                if frames.shape[0] > 0:
+                    frames = self._align_frames(frames)
+                    return torch.from_numpy(frames)
+        return torch.zeros(
+            (self.clip_frames, self.face_size, self.face_size, 3),
+            dtype=torch.uint8,
+        )
+
+    def _align_frames(self, frames: np.ndarray) -> np.ndarray:
+        """Center-crop or zero-pad to ``self.clip_frames`` time steps."""
+        f, h, w, c = frames.shape
+        if f == self.clip_frames:
+            return frames
+        if f > self.clip_frames:
+            start = (f - self.clip_frames) // 2
+            return frames[start : start + self.clip_frames]
+        pad = np.zeros((self.clip_frames - f, h, w, c), dtype=frames.dtype)
+        return np.concatenate([frames, pad], axis=0)

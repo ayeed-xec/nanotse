@@ -1,0 +1,49 @@
+# 3060 run-5: v4 (EMA 0.99 + with_asd=false) + multi-resolution magnitude STFT loss.
+#
+# Purpose: stack the biggest known quality lever on top of the cleanup from v4.
+# Mag-STFT pairs spectral-magnitude error with time-domain SI-SNR -- standard
+# "+0.5-1.0 dB free" trick for waveform separation.
+#
+# Differences from configs/3060_v4_control.yaml:
+#   - loss_weights.mag_stft: 0.0 -> 0.5  (the only change)
+#
+# Manifest: face_ok-filtered data/v2/manifest.json (applied during v3).
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 8
+train:
+  steps: 12500
+  lr: 5.0e-4
+  log_every: 25
+  ckpt_every: 1250
+  val_every: 250
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 250
+  min_lr_ratio: 0.05
+  ema_decay: 0.99
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 4
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+    mag_stft: 0.5
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true        # confirm via v4_no_slots ablation before flipping
+  with_asd: false

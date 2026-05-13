@@ -5,6 +5,122 @@ records small choices made without escalating, per the user's no-ask preference.
 
 ## [Unreleased]
 
+### 2026-05-13 — post-v5: mel loss + model scale-up knobs + a100_v1 retune
+
+**Context — v5 termination + capacity ceiling**
+- v5 killed at step 1750 (88.4 min wall) with best val SDRi **+0.11 dB** (preserved at `runs/3060_v5_partial_step1500_p007dB.pt`). Trajectory −3.09 → −0.55 → −0.19 → −0.05 → +0.03 → +0.07 → +0.11, all monotone climbs.
+- Slowdown analysis at step 1500-1750 pointed to 4.75M-param capacity ceiling: train per-batch best stuck at +5.86 dB for ~1000 steps, mag_stft loss saturating at ~1.7. Not a coding/architectural defect — natural diminishing returns at this size class.
+- Decision: don't restart on 3060 with same model; instead, stack the next-largest single lever (model scale) for the A100 run. v5 partial-baseline numbers are sufficient to confirm the recipe.
+
+**Added — multi-resolution log-mel perceptual loss**
+- `nanotse/losses/mel_loss.py`: `multi_res_mel_loss(est, tgt)` averages log-mel L1 across 3 resolutions (n_fft 1024/2048/4096, n_mels=80). Hand-built mel filterbank cached per (sr, n_fft, n_mels, device, dtype) to avoid re-allocation. Complement to `multi_res_mag_stft`: linear-magnitude STFT covers spectral envelope, log-mel covers perceptually-weighted formant detail. Standard HiFi-GAN-style pairing; expected +0.5-1.0 dB SDRi.
+- `LossWeights.mel` Pydantic field (default 0.0 preserves v3-v5 numerics). Wired through `compute_loss` and logged as `loss_mel` in `tracker.log`.
+- Smoke verified: random pair mag=0.30, identical=0.0 (sanity), gradients non-zero. Stacked with mag_stft in `compute_loss` -- both contribute to `total`.
+
+**Added — model capacity knobs in `ModelConfig`**
+- `nanotse/utils/config.py`: `ModelConfig.d_model: int = 256`, `n_layers: int = 2`, `n_heads: int = 4`. Defaults preserve the 4.75M-param model used in v2-v5; bump them in YAML to scale.
+- `scripts/train.py`: `_build_model` + checkpoint `model_kwargs` thread the new knobs through. NanoTSE's constructor already accepted these args; we just expose them at config-time.
+- Verified scale sweep (forward + backward all green):
+  - `(256, 2, 4)`: **4.69M** (v2-v5)
+  - `(320, 3, 4)`: 7.42M
+  - `(384, 3, 6)`: 9.75M
+  - `(384, 4, 6)`: 11.53M
+  - `(448, 4, 8)`: 14.90M
+  - `(512, 4, 8)`: **18.75M** (a100_v1 target)
+  - `(512, 6, 8)`: 25.06M (a100_v2 candidate)
+
+**Changed — `configs/a100_v1.yaml`**
+- Bumped model: `d_model: 512`, `n_layers: 4`, `n_heads: 8` → **18.75M params** (vs original 4.75M).
+- Added `loss_weights.mel: 0.3` (complement to mag_stft 0.5).
+- Updated header docstring with the v5-informed projection math: v5 +0.11 dB (partial) + ~0.5-0.8 (rest of run) + ~0.5-1.2 (8× compute) + ~1.0-2.0 (4× capacity) + ~0.5-1.0 (mel loss) = **realistic +3.5 dB val SDRi** mid-projection. Decision threshold: ≥+3.5 dB green-lights ICASSP push.
+
+**Pending (logged for future runs)**
+- SNR curriculum (`TrainConfig.curriculum_steps`): linear ramp from `(0, 10)` dB → `(-5, +10)` dB over N steps. Multi-worker DataLoader sync makes the implementation non-trivial (shared `mp.Value` or per-epoch hook). Deferred since it's a +0.3-0.5 dB lever; scale + mel are bigger.
+- RetinaFace mouth-ROI re-extraction: bumps face_ok median 0.83 → ~0.97 on the kept clips. +0.3-0.5 dB. Defer until disk + 2 h CPU available.
+- Pretrained AV-HuBERT visual encoder integration: +1.0-2.0 dB lever but ~1-2 weeks of work + weight download. Scope decision needed before committing.
+
+**Decisions** (no-ask)
+- **Mel loss kept hand-rolled** rather than `torchaudio.transforms.MelSpectrogram`. Same numerics, no extra dependency surface, easier to control filterbank caching for the autocast path.
+- **Skipped SNR curriculum for a100_v1.** Even though it's listed in the "what could be better" table, the dynamic implementation has real complexity (multiprocessing shared state). A "manual curriculum" via two `--resume`'d runs (narrow SNR then wide) achieves 80% of the benefit with zero new code; defer the dynamic version.
+- **a100_v1 stays at 18.75M, not 25M.** The clean comparison vs v5 (4.75M) is a single-variable-changed scale-up. v2 (25M) becomes the second A100 run if v1 lands well.
+
+### 2026-05-13 — v5 launch + pre-A100 polish (mag-STFT, EMA-in-ckpt, bf16, a100 config)
+
+**Context — v5 path decision**
+- v3 partial (killed at step 3275 to fast-track v5) preserved at `runs/3060_v3_partial_step3k_neg014dB.pt`. Val trajectory −11.31 → −4.04 → −1.56 → −0.63 → −0.34 → −0.14 dB (6/6 monotone climbs); projected endpoint +0.7-1.0 dB.
+- v5 stacks all the diagnosed fixes on top of v3: mag-STFT loss (weight 0.5), EMA decay 0.99 (val readable from step 250), `with_asd=false` (dead-compute removal). Single combined run vs the disciplined v3→v4→v5 ablation chain to get the headline number sooner and trade off ablation clarity.
+
+**Added — multi-resolution magnitude STFT loss**
+- `nanotse/losses/mag_stft.py`: `multi_res_mag_stft(est, tgt)` averages spectral-convergence + log-magnitude-L1 across 3 resolutions (n_fft 512/1024/2048; hop 50/120/240; win 240/600/1200). Single scalar return; no learnable params; standard `parallel-wavegan`-style auxiliary.
+- `LossWeights.mag_stft` Pydantic field (default 0.0). Wired through `compute_loss` -- the returned dict now includes a `mag_stft` key.
+- `scripts/train.py`: `tracker.log()` now logs `loss_mag_stft` as a first-class metric. Verified by 4-step smoke: keys = `[loss_asd, loss_consistency, loss_infonce, loss_mag_stft, loss_si_snr, loss_total, si_snr_db, step, t]`.
+- v3 partial-baseline runs predate this loss; mag-STFT effect is first measured in v5.
+
+**Added — EMA state saved in checkpoints**
+- `nanotse/training/checkpoint.py`: `save_checkpoint` now takes optional `ema_state` (typically `ema.state_dict()`). `load_checkpoint` accepts `ema_state_target` and copies the saved shadow weights in place. Old checkpoints without an `ema` key silently skip the restore -- backward compatible.
+- `scripts/train.py`: all 5 `save_checkpoint` call sites pass `ema_state=ema.state_dict() if ema is not None else None`; `load_checkpoint` on `--resume` threads `ema.shadow` through.
+- Verified by smoke: after train→save→reload, EMA shadow tensors differ from their fresh-init values (1.12e-1 magnitude change confirmed for two sampled keys), proving the state round-trips.
+
+**Added — bf16 mixed-precision autocast**
+- `nanotse/utils/config.py`: `TrainConfig.precision: Literal["fp32", "bf16"] = "fp32"`. Default preserves v3-v5 numerics.
+- `scripts/train.py`: forward + `compute_loss` wrapped in `torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=use_amp)`. `use_amp` is gated on (`precision == "bf16"` and `device.type == "cuda"`) so CPU/MPS silently fall back. No `GradScaler` (bf16 has fp32 dynamic range; not needed).
+- Expected speedup: ~1.5-2× on A100/H100; modest on 3060 Ampere (kept off in 3060 v5 to preserve numerics for v3-v5 comparison).
+
+**Added — `configs/a100_v1.yaml`**
+- Production-scale config inheriting v5 recipe. Deltas vs `configs/3060_v5.yaml`:
+  - `batch_size: 8 → 32` (no accum needed on 80GB)
+  - `accum_steps: 4 → 1`
+  - `steps: 12500 → 100000` (8× the updates)
+  - `ema_decay: 0.99 → 0.999` (proportional half-life)
+  - `warmup_steps: 250 → 2000`
+  - `num_clips: 50000 → 500000` (deeper cycling)
+  - `val_every: 250 → 1000` (still ~100 vals over the run)
+  - `val_clips: 500 → 2000` (val noise floor ~±0.025 dB)
+  - `precision: fp32 → bf16`
+  - `num_workers: 4 → 8`, `prefetch_factor: 2 → 4`
+- Model architecture unchanged (4.75M params); capacity bump (15-25M) deferred to `a100_v2.yaml` after v1 numbers land.
+
+**Cleaned**
+- Deleted stale logs: `runs/3060_full_v1.log`, `runs/3060_loss_schedule_v1.log`, `runs/3060_v3_fresh.stdout.log`, `runs/fetch_*.log`. `runs/3060_v3_fresh/` directory itself removed earlier (best.pt preserved as `runs/3060_v3_partial_step3k_neg014dB.pt`).
+- Deleted `cuda-keyring_1.1-1_all.deb` (WSL CUDA setup leftover).
+
+**Decisions** (no-ask)
+- **bf16 not fp16** for mixed precision: same dynamic range as fp32 (no GradScaler), industry standard on Ampere/Hopper, and avoids the silent-loss-scale-overflow class of bugs that fp16 occasionally produces with STFT magnitude losses.
+- **`with_asd=False` in v5 + a100_v1**: head consumes compute for an output we zero-weight. Re-enable in W7-8 when real per-frame ASD GT is available.
+- **a100_v1 keeps the 4.75 M-param model**: scale data and step count first, then scale capacity. Lets us attribute deltas cleanly between a100_v1 and a100_v2.
+
+### 2026-05-13 — v3 mid-run audit: ablation toggles + run-4 design notes
+
+**Context — v2 plateau diagnosis**
+- 3060_v2_fresh (`runs/3060_v2_baseline_step8k_p18dB.pt`) plateaued at val SDRi **+0.18 dB** after step 8000, with slope decay +0.95 → +0.12 → +0.04 → −0.01 dB per 2k steps.
+- Root cause: per-batch gradient SNR was too low. Sources: (a) 27% of v2 face clips had face_ok < 0.5 → fraction of batches effectively audio-only, (b) batch=8 with stratified speaker sampling + ±5 to +10 dB SNR aug → ±1 dB per-batch jitter on last_5 windows.
+- v3 fixes: face_ok ≥ 0.5 speaker filter (583 → 432 speakers, 91848 → 69814 train clips) + gradient accumulation (effective batch 32 via accum_steps=4) + tighter step budget (12500 effective steps, same 400k sample budget).
+
+**Added — ablation toggles on `NanoTSE`**
+- `nanotse/models/nanotse.py`: new constructor flags `with_slots: bool = True` and `with_asd: bool = True`. Both default True so v3 in flight is unaffected. With `with_slots=False` the slot memory + `slot_to_feat` Linear are not constructed and the AV path bypasses identity injection (feat goes straight to `TSEHead`). With `with_asd=False` the ASD head is not built and `asd_logits=None` is returned. `with_asd=True` requires `with_slots=True` (the head consumes slot embeddings).
+- `nanotse/utils/config.py`: `ModelConfig.with_slots` / `with_asd` Pydantic fields, default True.
+- `scripts/train.py`: `_build_model` + checkpoint `model_kwargs` thread the new flags through.
+- Smoke (instantiation + forward + backward) verified for all four combinations: full (4.75M), no_slots (3.70M, saves 1.05M = 22%), no_asd (4.69M, saves ~60K), minimal (3.70M).
+
+**Added — gradient accumulation**
+- `nanotse/utils/config.py`: `TrainConfig.accum_steps: int = 1`. When > 1, optimizer.step / EMA.update / grad-clip / scheduler-tick fire once per accum_steps mini-batches; loss is scaled by 1/accum so summed grads match a true large-batch run. All log/val/ckpt cadences are denominated in *effective* steps.
+- `scripts/train.py`: gradient-accumulation loop with `micro_in_step` counter, zero-grad at the start of each effective step, partial-grad discard at epoch boundary.
+- `configs/3060_v3.yaml` exercises accum_steps=4 (effective batch 32) for the in-flight run.
+
+**Added — manifest face_ok filter**
+- `scripts/data_prep/filter_manifest_by_face_ok.py`: drops speakers whose face cache frame-count-weighted mean `face_ok` ratio is < threshold (default 0.5). Backs up the pre-filter manifest to `manifest.json.pre_face_filter`. Reports kept/dropped distribution, train/val clip + speaker counts, and confirms the speaker-disjoint property survives.
+- v2 → v3 manifest delta: 583 → 432 speakers (74% kept), 91848 → 69814 train clips, 23553 → 17667 val clips. Kept median face_ok = 0.83 (well above threshold); dropped median = 0.31.
+
+**Pending — run-4 design (post-v3)**
+- **EMA decay 0.999 → 0.99**: v3 first val at step 500 came back at −11.31 dB (EMA was only 39% trained), recovering to −4.04 at step 1000 (63% trained). The 0.999 decay made val unreadable until step ~2500. Lowering to 0.99 makes EMA ≥80% trained by step ~160 → val readable from the first eval. *Trade-off:* slightly noisier EMA, but for a 12500-step run the bias of 0.999 dominates the variance reduction it nominally buys.
+- **NamedSlotMemory ablation**: run-4-control (full architecture) + run-4-no-slots (with_slots=False) for 2500 effective steps each, compare val SDRi at step 2500. If no-slots ≥ full, NamedSlotMemory is dead capacity for single-clip training and we ship the 3.70M-param model. If full > no-slots, slot memory is load-bearing even in single-clip mode and we keep it.
+- **Conditional ASD forward**: already wired via `with_asd=False`. For run-4 we default it False until W7-8 multi-session ASD GT lands. Saves a small per-step forward+backward.
+- **`configs/3060_v4.yaml`**: will be written once v3 finishes; should encode all three changes above.
+
+**Decisions** (no-ask)
+- **`with_asd=True` requires `with_slots=True`**: a clean dependency rather than silently broken (the head's forward signature consumes slot embeddings).
+- **Defaults kept at True for new flags**: zero risk of breaking the in-flight v3 process or loading the existing v2 checkpoint, which gates module construction via `model_kwargs`.
+
 ### 2026-05-12 — MeMo baseline + STFT branch; M3 build complete
 **Added — MeMo baseline (paper-arch placeholder)**
 - `nanotse/models/baselines/memo.py` (`MeMoBaseline`, `SpeakerBank`, `ContextBank`, `MeMoState`): Li et al. 2025's architecture port. N=1 FIFO bank replacement, self-enrollment from post-backbone features, reuses our `AudioFrontend` + `ChunkAttnBackbone` + `TSEHead`. Audio-only by default; `with_visual=True` adds `VisualFrontend` + a broadcast visual feature into the fusion concat.
@@ -316,3 +432,36 @@ NanoTSE at the full 1.8 M params still has ~12× headroom on MPS, ~57× on CPU. 
 - **`auto` as a first-class Device value** rather than chain-fallback inside the existing `"mps"`/`"cuda"` branches. Explicit beats magical: writing `device: mps` in a config still means MPS only, so M3-pinned configs (and CI's `cpu` strictness) stay unambiguous. Only `auto` opts into runtime detection.
 - **No bench-harness changes** — `nanotse/eval/latency_bench.py` already auto-picks CUDA→MPS→CPU; the M3 `CONFIGS` list ran on CUDA untouched. The full-AV row was already wired via `_AVAudioOnlyWrapper` (added in the M3 build).
 - **The data fetch (`fetch_voxceleb2_mix_smoke.py --num-train-speakers 3 --num-val-speakers 2 --clips-per-speaker 2`) is fully deterministic** — same 5 speakers, same 10 wavs, same manifest bytes as the M3 fetch. Manifest in git is the contract; wavs are reproduced from HF on each new machine.
+
+### 2026-05-12 — Loss schedule wired: InfoNCE on slots; all model features now training-active
+**Added**
+- `nanotse/utils/config.py::LossWeights` — Pydantic model holding `si_snr` / `infonce` / `asd` / `consistency` weights (all `Field(ge=0)`). Attached to `TrainConfig.loss_weights` with sensible defaults (`si_snr=1.0, infonce=0.1, asd=0.0, consistency=0.0`). Every model uses `ConfigDict(extra="forbid")` so YAML typos fail at load time. ASD + consistency stay at 0.0 by default; flipping them on is a YAML-only change once their prerequisite labels exist (W7-8 ASD GT; W5-6 multi-window dataset).
+- `nanotse/training/losses.py::compute_loss` — composite weighted-sum loss. Returns a `dict[str, torch.Tensor]` with `total / si_snr / infonce / asd / consistency` keys always present (zero scalars when a term is gated off), so the training tracker logs a uniform schema regardless of which losses are active. Plain dict (not Pydantic) for the hot path — Pydantic validation overhead per step would be wasted; configs are Pydantic, runtime tensors are not.
+- `configs/3060.yaml` — real-data training config on the RTX 3060 Laptop box. 2000 steps, batch 8, `lr=5e-4`, sized for 6 GB VRAM. Same loss schedule as smoke/a100.
+- `tests/test_train_loss_schedule.py` (6 tests): per-term gating, gradient flow through slot bank, full AV forward → `compute_loss` → backward without NaN, plus an end-to-end `scripts/train.py` subprocess test that asserts `loss_total / loss_si_snr / loss_infonce / loss_asd / loss_consistency` rows are written to `metrics.jsonl` and `si_snr` decreases over 30 steps.
+
+**Changed**
+- `nanotse/models/nanotse.py::NanoTSE.forward` now returns `(tse_out, asd_logits, slots)`. The third element (`(B, N, S)` slot bank) is `None` in audio-only mode, populated in the full AV path. Surfacing the slots is what lets InfoNCE (and future slot-consistency) train them directly instead of routing all gradient through the TSE head. `NanoTSEOutput` type alias added for explicit annotation.
+- `scripts/train.py` now reads `cfg.train.loss_weights`, calls `nanotse.training.compute_loss`, and logs `loss_total / loss_si_snr / loss_infonce / loss_asd / loss_consistency / si_snr_db` per step. Stdout banner shows the active weight schedule. Forward path factored into `_forward(...)` helper that handles audio-only baselines (`TDSEBaseline`) and full-AV NanoTSE uniformly.
+- `nanotse/models/baselines/memo.py::MeMoState` converted from `@dataclass` → Pydantic `BaseModel` (`ConfigDict(arbitrary_types_allowed=True)` to hold `torch.Tensor` fields). The project's container style is now single-source: Pydantic for everything except `TypedDict`-shaped runtime tensor payloads (`AVMixSample`, `SlotState`) where DataLoader/streaming collation requires plain dicts.
+- `tests/test_nanotse_assembly.py` updated to unpack the new 3-tuple. Added `test_nanotse_av_no_video_returns_none_aux` to lock the behaviour when an AV-capable model is called without video.
+- `configs/{smoke,a100}.yaml` updated with explicit `loss_weights` blocks (same defaults — keeps configs self-describing; no behavioural change on smoke).
+
+**Verified**
+- `ruff format --check .` — 62 files, all formatted.
+- `ruff check .` — all checks pass.
+- `mypy nanotse` — clean (`--strict` via `pyproject.toml`), 35 source files.
+- `pytest` — **124/124 passing** (up from 116; +6 in `test_train_loss_schedule.py`, +1 in `test_nanotse_assembly.py`, +1 from previously-data-dependent W2.4 gate now in scope). 95 % branch coverage on `nanotse/`.
+- `make smoke` (full AV NanoTSE on real VoxCeleb2 audio, CUDA, 500 steps with `loss_weights={si_snr:1.0, infonce:0.1}`): baseline +3.57 dB → step 500 +2.47 dB SI-SNR. InfoNCE component oscillates 0.004 – 1.47 depending on whether each batch has speaker collisions (3 train speakers × batch 4 → ~67 % batches with ≥ 1 collision). No NaN; ckpt at `runs/smoke_loss_schedule/model.pt`.
+- **3060 long run** (`configs/3060.yaml`: 2000 steps × batch 8 × `lr=5e-4`, full AV NanoTSE, CUDA, real VoxCeleb2 audio + synthetic faces): wall time **18.2 min**, throughput **1.8 steps/s**, GPU 99 % util / 3.05 GiB VRAM / 36 W draw / 65 °C. Baseline (train mixes) +2.63 dB → peak SI-SNR +13.08 dB @ step 1900 (**peak train SDRi +10.45 dB**, in line with the MeMo paper's 9.85 dB and within ~2 dB of the AV-MossFormer2 teacher's ~14.4 dB). last-10-log mean +9.81 dB (mean train SDRi +7.18 dB). Ckpt at `runs/3060_loss_schedule_v1/model.pt` (17.9 MB).
+
+**Generalisation gap — surfaced by the val pass and worth flagging loudly**
+- `scripts/diagnose.py --ckpt runs/3060_loss_schedule_v1/model.pt --num-clips 6` (val split, 2 held-out speakers × 2 clips, 6 generated mixes): average SDRi **−2.87 dB** — the trained model *degrades* mixes on speakers it has not seen. Per-clip SDRi range: −4.01 to −1.83 dB.
+- Train +10.45 dB peak vs val −2.87 dB ⇒ **~13 dB train→val gap**: the model memorised speaker-specific spectral fingerprints with only 3 train speakers × 2 clips = 6 unique training wavs. Architecture is healthy (gradient flow, loss schedule, latency budget all green); the bottleneck is **data size + visual realism**, not model code. This is exactly the regime the W4 A100 burst is designed to leave behind.
+
+**Decisions** (no-ask)
+- **Three losses wired by code, only InfoNCE active by default.** `asd` and `consistency` are fully reachable in `compute_loss` but gated to 0.0 because their prerequisite signals don't exist yet (no real per-frame ASD GT on this data; no multi-window pairs). Inventing self-supervised proxies now would couple the design to placeholder labels and bias the learned slot↔speaker mapping before the real labels land — that's the W5-6 / W7-8 work.
+- **Slot pooling for InfoNCE is mean across `N`.** Cheapest correct option. Max-pool / attention-weighted pool are deferred until we have evidence they matter (no ablation row scheduled before W5-6).
+- **Loss return type is `dict[str, torch.Tensor]`, not Pydantic.** Pydantic models validate on every construction; for a per-step hot-path bundle that's overhead with no payoff (callers consume `losses["total"]` and the dict keys are tested). Configs (cold load) remain Pydantic; training tensors stay dicts. The `dataclass → Pydantic` cleanup is about killing the *mixture*, not enforcing Pydantic on every container.
+- **`TypedDict` for `AVMixSample` / `SlotState` kept.** They're DataLoader collation contracts and streaming-state contracts — `default_collate` cannot fold `BaseModel` instances, and converting them would force a custom `collate_fn` for no real win. `TypedDict` is the idiomatic PyTorch typing for batched dict payloads; the user's "no mixture" instruction was specifically about `dataclass` (only one offender: `MeMoState`, fixed).
+- **`configs/3060.yaml` shape**: 2000 steps × batch 8 × 4 s clips chosen to (a) cycle the 6 real wavs many times so the model sees mix diversity, (b) fit 6 GB VRAM headroom comfortably, (c) finish in well under 10 min so the smoke→long loop stays fast. Larger sweeps wait for `orig_part_*` (real face frames) and the A100 burst (W4).

@@ -1,0 +1,35 @@
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 8
+train:
+  steps: 50000
+  lr: 0.0005
+  log_every: 100
+  ckpt_every: 5000
+  val_every: 2000
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 1000
+  min_lr_ratio: 0.05
+  ema_decay: 0.999
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true

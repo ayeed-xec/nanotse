@@ -1,0 +1,46 @@
+# 3060 run-4 ablation: NamedSlotMemory disabled. Compared against 3060_v4_control.
+#
+# Hypothesis: under single-clip training, the "named" cross-utterance binding
+# in NamedSlotMemory isn't being exercised, so the slot machinery acts as dead
+# capacity (1.05 M params = 22% of the model). If val SDRi at step 2500 is
+# within ~0.1 dB of the control, we ship the 3.70 M-param variant for the paper.
+#
+# All other hyperparameters match 3060_v4_control.yaml (EMA 0.99, accum 4, etc.).
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 8
+train:
+  steps: 12500
+  lr: 5.0e-4
+  log_every: 25
+  ckpt_every: 1250
+  val_every: 250
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 250
+  min_lr_ratio: 0.05
+  ema_decay: 0.99
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 4
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: false
+  with_asd: false

@@ -1,12 +1,164 @@
 {
   "train": [
     {
-      "speaker_id": "id00081",
-      "wav": "audio/id00081/00001.wav"
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00001.wav"
     },
     {
-      "speaker_id": "id00081",
-      "wav": "audio/id00081/00002.wav"
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00002.wav"
+    },
+    {
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00003.wav"
+    },
+    {
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00004.wav"
+    },
+    {
+      "speaker_id": "id00017",
+      "wav": "audio/id00017/00005.wav"
+    },
+    {
+      "speaker_id": "id01989",
+      "wav": "audio/id01989/00001.wav"
+    },
+    {
+      "speaker_id": "id01989",
+      "wav": "audio/id01989/00002.wav"
+    },
+    {
+      "speaker_id": "id01989",
+      "wav": "audio/id01989/00003.wav"
+    },
+    {
+      "speaker_id": "id01989",
+      "wav": "audio/id01989/00004.wav"
+    },
+    {
+      "speaker_id": "id01989",
+      "wav": "audio/id01989/00005.wav"
+    },
+    {
+      "speaker_id": "id01066",
+      "wav": "audio/id01066/00001.wav"
+    },
+    {
+      "speaker_id": "id01066",
+      "wav": "audio/id01066/00002.wav"
+    },
+    {
+      "speaker_id": "id01066",
+      "wav": "audio/id01066/00003.wav"
+    },
+    {
+      "speaker_id": "id01066",
+      "wav": "audio/id01066/00004.wav"
+    },
+    {
+      "speaker_id": "id01066",
+      "wav": "audio/id01066/00005.wav"
+    },
+    {
+      "speaker_id": "id01541",
+      "wav": "audio/id01541/00001.wav"
+    },
+    {
+      "speaker_id": "id01541",
+      "wav": "audio/id01541/00002.wav"
+    },
+    {
+      "speaker_id": "id01541",
+      "wav": "audio/id01541/00003.wav"
+    },
+    {
+      "speaker_id": "id01541",
+      "wav": "audio/id01541/00004.wav"
+    },
+    {
+      "speaker_id": "id01541",
+      "wav": "audio/id01541/00005.wav"
+    },
+    {
+      "speaker_id": "id02057",
+      "wav": "audio/id02057/00001.wav"
+    },
+    {
+      "speaker_id": "id02057",
+      "wav": "audio/id02057/00002.wav"
+    },
+    {
+      "speaker_id": "id02057",
+      "wav": "audio/id02057/00003.wav"
+    },
+    {
+      "speaker_id": "id02057",
+      "wav": "audio/id02057/00004.wav"
+    },
+    {
+      "speaker_id": "id02057",
+      "wav": "audio/id02057/00005.wav"
+    },
+    {
+      "speaker_id": "id01228",
+      "wav": "audio/id01228/00001.wav"
+    },
+    {
+      "speaker_id": "id01228",
+      "wav": "audio/id01228/00002.wav"
+    },
+    {
+      "speaker_id": "id01228",
+      "wav": "audio/id01228/00003.wav"
+    },
+    {
+      "speaker_id": "id01228",
+      "wav": "audio/id01228/00004.wav"
+    },
+    {
+      "speaker_id": "id01228",
+      "wav": "audio/id01228/00005.wav"
+    },
+    {
+      "speaker_id": "id02576",
+      "wav": "audio/id02576/00001.wav"
+    },
+    {
+      "speaker_id": "id02576",
+      "wav": "audio/id02576/00002.wav"
+    },
+    {
+      "speaker_id": "id02576",
+      "wav": "audio/id02576/00003.wav"
+    },
+    {
+      "speaker_id": "id02576",
+      "wav": "audio/id02576/00004.wav"
+    },
+    {
+      "speaker_id": "id02576",
+      "wav": "audio/id02576/00005.wav"
+    },
+    {
+      "speaker_id": "id02445",
+      "wav": "audio/id02445/00001.wav"
+    },
+    {
+      "speaker_id": "id02445",
+      "wav": "audio/id02445/00002.wav"
+    },
+    {
+      "speaker_id": "id02445",
+      "wav": "audio/id02445/00003.wav"
+    },
+    {
+      "speaker_id": "id02445",
+      "wav": "audio/id02445/00004.wav"
+    },
+    {
+      "speaker_id": "id02445",
+      "wav": "audio/id02445/00005.wav"
     },
     {
       "speaker_id": "id00061",
@@ -17,15 +169,337 @@
       "wav": "audio/id00061/00002.wav"
     },
     {
-      "speaker_id": "id00017",
-      "wav": "audio/id00017/00001.wav"
+      "speaker_id": "id00061",
+      "wav": "audio/id00061/00003.wav"
     },
     {
-      "speaker_id": "id00017",
-      "wav": "audio/id00017/00002.wav"
-    }
-  ],
-  "val": [
+      "speaker_id": "id00061",
+      "wav": "audio/id00061/00004.wav"
+    },
+    {
+      "speaker_id": "id00061",
+      "wav": "audio/id00061/00005.wav"
+    },
+    {
+      "speaker_id": "id01509",
+      "wav": "audio/id01509/00001.wav"
+    },
+    {
+      "speaker_id": "id01509",
+      "wav": "audio/id01509/00002.wav"
+    },
+    {
+      "speaker_id": "id01509",
+      "wav": "audio/id01509/00003.wav"
+    },
+    {
+      "speaker_id": "id01509",
+      "wav": "audio/id01509/00004.wav"
+    },
+    {
+      "speaker_id": "id01509",
+      "wav": "audio/id01509/00005.wav"
+    },
+    {
+      "speaker_id": "id00817",
+      "wav": "audio/id00817/00001.wav"
+    },
+    {
+      "speaker_id": "id00817",
+      "wav": "audio/id00817/00002.wav"
+    },
+    {
+      "speaker_id": "id00817",
+      "wav": "audio/id00817/00003.wav"
+    },
+    {
+      "speaker_id": "id00817",
+      "wav": "audio/id00817/00004.wav"
+    },
+    {
+      "speaker_id": "id00817",
+      "wav": "audio/id00817/00005.wav"
+    },
+    {
+      "speaker_id": "id00562",
+      "wav": "audio/id00562/00001.wav"
+    },
+    {
+      "speaker_id": "id00562",
+      "wav": "audio/id00562/00002.wav"
+    },
+    {
+      "speaker_id": "id00562",
+      "wav": "audio/id00562/00003.wav"
+    },
+    {
+      "speaker_id": "id00562",
+      "wav": "audio/id00562/00004.wav"
+    },
+    {
+      "speaker_id": "id00562",
+      "wav": "audio/id00562/00005.wav"
+    },
+    {
+      "speaker_id": "id01000",
+      "wav": "audio/id01000/00001.wav"
+    },
+    {
+      "speaker_id": "id01000",
+      "wav": "audio/id01000/00002.wav"
+    },
+    {
+      "speaker_id": "id01000",
+      "wav": "audio/id01000/00003.wav"
+    },
+    {
+      "speaker_id": "id01000",
+      "wav": "audio/id01000/00004.wav"
+    },
+    {
+      "speaker_id": "id01000",
+      "wav": "audio/id01000/00005.wav"
+    },
+    {
+      "speaker_id": "id01106",
+      "wav": "audio/id01106/00001.wav"
+    },
+    {
+      "speaker_id": "id01106",
+      "wav": "audio/id01106/00002.wav"
+    },
+    {
+      "speaker_id": "id01106",
+      "wav": "audio/id01106/00003.wav"
+    },
+    {
+      "speaker_id": "id01106",
+      "wav": "audio/id01106/00004.wav"
+    },
+    {
+      "speaker_id": "id01106",
+      "wav": "audio/id01106/00005.wav"
+    },
+    {
+      "speaker_id": "id01224",
+      "wav": "audio/id01224/00001.wav"
+    },
+    {
+      "speaker_id": "id01224",
+      "wav": "audio/id01224/00002.wav"
+    },
+    {
+      "speaker_id": "id01224",
+      "wav": "audio/id01224/00003.wav"
+    },
+    {
+      "speaker_id": "id01224",
+      "wav": "audio/id01224/00004.wav"
+    },
+    {
+      "speaker_id": "id01224",
+      "wav": "audio/id01224/00005.wav"
+    },
+    {
+      "speaker_id": "id02548",
+      "wav": "audio/id02548/00001.wav"
+    },
+    {
+      "speaker_id": "id02548",
+      "wav": "audio/id02548/00002.wav"
+    },
+    {
+      "speaker_id": "id02548",
+      "wav": "audio/id02548/00003.wav"
+    },
+    {
+      "speaker_id": "id02548",
+      "wav": "audio/id02548/00004.wav"
+    },
+    {
+      "speaker_id": "id02548",
+      "wav": "audio/id02548/00005.wav"
+    },
+    {
+      "speaker_id": "id01567",
+      "wav": "audio/id01567/00001.wav"
+    },
+    {
+      "speaker_id": "id01567",
+      "wav": "audio/id01567/00002.wav"
+    },
+    {
+      "speaker_id": "id01567",
+      "wav": "audio/id01567/00003.wav"
+    },
+    {
+      "speaker_id": "id01567",
+      "wav": "audio/id01567/00004.wav"
+    },
+    {
+      "speaker_id": "id01567",
+      "wav": "audio/id01567/00005.wav"
+    },
+    {
+      "speaker_id": "id02577",
+      "wav": "audio/id02577/00001.wav"
+    },
+    {
+      "speaker_id": "id02577",
+      "wav": "audio/id02577/00002.wav"
+    },
+    {
+      "speaker_id": "id02577",
+      "wav": "audio/id02577/00003.wav"
+    },
+    {
+      "speaker_id": "id02577",
+      "wav": "audio/id02577/00004.wav"
+    },
+    {
+      "speaker_id": "id02577",
+      "wav": "audio/id02577/00005.wav"
+    },
+    {
+      "speaker_id": "id01593",
+      "wav": "audio/id01593/00001.wav"
+    },
+    {
+      "speaker_id": "id01593",
+      "wav": "audio/id01593/00002.wav"
+    },
+    {
+      "speaker_id": "id01593",
+      "wav": "audio/id01593/00003.wav"
+    },
+    {
+      "speaker_id": "id01593",
+      "wav": "audio/id01593/00004.wav"
+    },
+    {
+      "speaker_id": "id01593",
+      "wav": "audio/id01593/00005.wav"
+    },
+    {
+      "speaker_id": "id01333",
+      "wav": "audio/id01333/00001.wav"
+    },
+    {
+      "speaker_id": "id01333",
+      "wav": "audio/id01333/00002.wav"
+    },
+    {
+      "speaker_id": "id01333",
+      "wav": "audio/id01333/00003.wav"
+    },
+    {
+      "speaker_id": "id01333",
+      "wav": "audio/id01333/00004.wav"
+    },
+    {
+      "speaker_id": "id01333",
+      "wav": "audio/id01333/00005.wav"
+    },
+    {
+      "speaker_id": "id00866",
+      "wav": "audio/id00866/00001.wav"
+    },
+    {
+      "speaker_id": "id00866",
+      "wav": "audio/id00866/00002.wav"
+    },
+    {
+      "speaker_id": "id00866",
+      "wav": "audio/id00866/00003.wav"
+    },
+    {
+      "speaker_id": "id00866",
+      "wav": "audio/id00866/00004.wav"
+    },
+    {
+      "speaker_id": "id00866",
+      "wav": "audio/id00866/00005.wav"
+    },
+    {
+      "speaker_id": "id02465",
+      "wav": "audio/id02465/00001.wav"
+    },
+    {
+      "speaker_id": "id02465",
+      "wav": "audio/id02465/00002.wav"
+    },
+    {
+      "speaker_id": "id02465",
+      "wav": "audio/id02465/00003.wav"
+    },
+    {
+      "speaker_id": "id02465",
+      "wav": "audio/id02465/00004.wav"
+    },
+    {
+      "speaker_id": "id02465",
+      "wav": "audio/id02465/00005.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00001.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00002.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00003.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00004.wav"
+    },
+    {
+      "speaker_id": "id00154",
+      "wav": "audio/id00154/00005.wav"
+    },
+    {
+      "speaker_id": "id02317",
+      "wav": "audio/id02317/00001.wav"
+    },
+    {
+      "speaker_id": "id02317",
+      "wav": "audio/id02317/00002.wav"
+    },
+    {
+      "speaker_id": "id02317",
+      "wav": "audio/id02317/00003.wav"
+    },
+    {
+      "speaker_id": "id02317",
+      "wav": "audio/id02317/00004.wav"
+    },
+    {
+      "speaker_id": "id02317",
+      "wav": "audio/id02317/00005.wav"
+    },
+    {
+      "speaker_id": "id00926",
+      "wav": "audio/id00926/00001.wav"
+    },
+    {
+      "speaker_id": "id00926",
+      "wav": "audio/id00926/00002.wav"
+    },
+    {
+      "speaker_id": "id00926",
+      "wav": "audio/id00926/00003.wav"
+    },
+    {
+      "speaker_id": "id00926",
+      "wav": "audio/id00926/00004.wav"
+    },
+    {
+      "speaker_id": "id00926",
+      "wav": "audio/id00926/00005.wav"
+    },
     {
       "speaker_id": "id00419",
       "wav": "audio/id00419/00001.wav"
@@ -35,12 +509,298 @@
       "wav": "audio/id00419/00002.wav"
     },
     {
-      "speaker_id": "id00154",
-      "wav": "audio/id00154/00001.wav"
+      "speaker_id": "id00419",
+      "wav": "audio/id00419/00003.wav"
     },
     {
-      "speaker_id": "id00154",
-      "wav": "audio/id00154/00002.wav"
+      "speaker_id": "id00419",
+      "wav": "audio/id00419/00004.wav"
+    },
+    {
+      "speaker_id": "id00419",
+      "wav": "audio/id00419/00005.wav"
+    },
+    {
+      "speaker_id": "id02542",
+      "wav": "audio/id02542/00001.wav"
+    },
+    {
+      "speaker_id": "id02542",
+      "wav": "audio/id02542/00002.wav"
+    },
+    {
+      "speaker_id": "id02542",
+      "wav": "audio/id02542/00003.wav"
+    },
+    {
+      "speaker_id": "id02542",
+      "wav": "audio/id02542/00004.wav"
+    },
+    {
+      "speaker_id": "id02542",
+      "wav": "audio/id02542/00005.wav"
+    },
+    {
+      "speaker_id": "id00812",
+      "wav": "audio/id00812/00001.wav"
+    },
+    {
+      "speaker_id": "id00812",
+      "wav": "audio/id00812/00002.wav"
+    },
+    {
+      "speaker_id": "id00812",
+      "wav": "audio/id00812/00003.wav"
+    },
+    {
+      "speaker_id": "id00812",
+      "wav": "audio/id00812/00004.wav"
+    },
+    {
+      "speaker_id": "id00812",
+      "wav": "audio/id00812/00005.wav"
+    },
+    {
+      "speaker_id": "id02019",
+      "wav": "audio/id02019/00001.wav"
+    },
+    {
+      "speaker_id": "id02019",
+      "wav": "audio/id02019/00002.wav"
+    },
+    {
+      "speaker_id": "id02019",
+      "wav": "audio/id02019/00003.wav"
+    },
+    {
+      "speaker_id": "id02019",
+      "wav": "audio/id02019/00004.wav"
+    },
+    {
+      "speaker_id": "id02019",
+      "wav": "audio/id02019/00005.wav"
+    },
+    {
+      "speaker_id": "id01437",
+      "wav": "audio/id01437/00001.wav"
+    },
+    {
+      "speaker_id": "id01437",
+      "wav": "audio/id01437/00002.wav"
+    },
+    {
+      "speaker_id": "id01437",
+      "wav": "audio/id01437/00003.wav"
+    },
+    {
+      "speaker_id": "id01437",
+      "wav": "audio/id01437/00004.wav"
+    },
+    {
+      "speaker_id": "id01437",
+      "wav": "audio/id01437/00005.wav"
+    }
+  ],
+  "val": [
+    {
+      "speaker_id": "id01041",
+      "wav": "audio/id01041/00001.wav"
+    },
+    {
+      "speaker_id": "id01041",
+      "wav": "audio/id01041/00002.wav"
+    },
+    {
+      "speaker_id": "id01041",
+      "wav": "audio/id01041/00003.wav"
+    },
+    {
+      "speaker_id": "id01041",
+      "wav": "audio/id01041/00004.wav"
+    },
+    {
+      "speaker_id": "id01041",
+      "wav": "audio/id01041/00005.wav"
+    },
+    {
+      "speaker_id": "id02086",
+      "wav": "audio/id02086/00001.wav"
+    },
+    {
+      "speaker_id": "id02086",
+      "wav": "audio/id02086/00002.wav"
+    },
+    {
+      "speaker_id": "id02086",
+      "wav": "audio/id02086/00003.wav"
+    },
+    {
+      "speaker_id": "id02086",
+      "wav": "audio/id02086/00004.wav"
+    },
+    {
+      "speaker_id": "id02086",
+      "wav": "audio/id02086/00005.wav"
+    },
+    {
+      "speaker_id": "id01460",
+      "wav": "audio/id01460/00001.wav"
+    },
+    {
+      "speaker_id": "id01460",
+      "wav": "audio/id01460/00002.wav"
+    },
+    {
+      "speaker_id": "id01460",
+      "wav": "audio/id01460/00003.wav"
+    },
+    {
+      "speaker_id": "id01460",
+      "wav": "audio/id01460/00004.wav"
+    },
+    {
+      "speaker_id": "id01460",
+      "wav": "audio/id01460/00005.wav"
+    },
+    {
+      "speaker_id": "id01822",
+      "wav": "audio/id01822/00001.wav"
+    },
+    {
+      "speaker_id": "id01822",
+      "wav": "audio/id01822/00002.wav"
+    },
+    {
+      "speaker_id": "id01822",
+      "wav": "audio/id01822/00003.wav"
+    },
+    {
+      "speaker_id": "id01822",
+      "wav": "audio/id01822/00004.wav"
+    },
+    {
+      "speaker_id": "id01822",
+      "wav": "audio/id01822/00005.wav"
+    },
+    {
+      "speaker_id": "id02181",
+      "wav": "audio/id02181/00001.wav"
+    },
+    {
+      "speaker_id": "id02181",
+      "wav": "audio/id02181/00002.wav"
+    },
+    {
+      "speaker_id": "id02181",
+      "wav": "audio/id02181/00003.wav"
+    },
+    {
+      "speaker_id": "id02181",
+      "wav": "audio/id02181/00004.wav"
+    },
+    {
+      "speaker_id": "id02181",
+      "wav": "audio/id02181/00005.wav"
+    },
+    {
+      "speaker_id": "id02286",
+      "wav": "audio/id02286/00001.wav"
+    },
+    {
+      "speaker_id": "id02286",
+      "wav": "audio/id02286/00002.wav"
+    },
+    {
+      "speaker_id": "id02286",
+      "wav": "audio/id02286/00003.wav"
+    },
+    {
+      "speaker_id": "id02286",
+      "wav": "audio/id02286/00004.wav"
+    },
+    {
+      "speaker_id": "id02286",
+      "wav": "audio/id02286/00005.wav"
+    },
+    {
+      "speaker_id": "id01298",
+      "wav": "audio/id01298/00001.wav"
+    },
+    {
+      "speaker_id": "id01298",
+      "wav": "audio/id01298/00002.wav"
+    },
+    {
+      "speaker_id": "id01298",
+      "wav": "audio/id01298/00003.wav"
+    },
+    {
+      "speaker_id": "id01298",
+      "wav": "audio/id01298/00004.wav"
+    },
+    {
+      "speaker_id": "id01298",
+      "wav": "audio/id01298/00005.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00001.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00002.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00003.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00004.wav"
+    },
+    {
+      "speaker_id": "id00081",
+      "wav": "audio/id00081/00005.wav"
+    },
+    {
+      "speaker_id": "id01892",
+      "wav": "audio/id01892/00001.wav"
+    },
+    {
+      "speaker_id": "id01892",
+      "wav": "audio/id01892/00002.wav"
+    },
+    {
+      "speaker_id": "id01892",
+      "wav": "audio/id01892/00003.wav"
+    },
+    {
+      "speaker_id": "id01892",
+      "wav": "audio/id01892/00004.wav"
+    },
+    {
+      "speaker_id": "id01892",
+      "wav": "audio/id01892/00005.wav"
+    },
+    {
+      "speaker_id": "id01618",
+      "wav": "audio/id01618/00001.wav"
+    },
+    {
+      "speaker_id": "id01618",
+      "wav": "audio/id01618/00002.wav"
+    },
+    {
+      "speaker_id": "id01618",
+      "wav": "audio/id01618/00003.wav"
+    },
+    {
+      "speaker_id": "id01618",
+      "wav": "audio/id01618/00004.wav"
+    },
+    {
+      "speaker_id": "id01618",
+      "wav": "audio/id01618/00005.wav"
     }
   ]
 }

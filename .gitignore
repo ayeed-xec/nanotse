@@ -49,3 +49,6 @@ checkpoints/
 *.swp
 *.swo
 .DS_Store
+
+# Claude Code local settings
+.claude/

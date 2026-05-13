@@ -20,9 +20,8 @@ so swapping the two for an ablation row is one constructor call.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import torch
+from pydantic import BaseModel, ConfigDict
 from torch import nn
 
 from nanotse.models.backbones.chunk_attn import ChunkAttnBackbone
@@ -31,9 +30,14 @@ from nanotse.models.frontends.visual_avhubert import VisualFrontend
 from nanotse.models.heads.tse import TSEHead
 
 
-@dataclass
-class MeMoState:
-    """Persistent MeMo bank state across streaming chunks (N=1 FIFO)."""
+class MeMoState(BaseModel):
+    """Persistent MeMo bank state across streaming chunks (N=1 FIFO).
+
+    Pydantic model so the project keeps a single container style; ``arbitrary
+    _types_allowed`` lets the speaker/context slot fields hold ``torch.Tensor``.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     speaker_slot: torch.Tensor | None = None  # (B, d_spk)
     context_slot: torch.Tensor | None = None  # (B, T, d_ctx)

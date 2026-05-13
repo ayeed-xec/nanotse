@@ -1,0 +1,66 @@
+# A100 first scale-up run. Combines the v5 recipe with:
+#   1. Bigger model: 4.69M -> 18.75M params (d_model 256->512, n_layers 2->4)
+#      This is the #1 single-issue lever per the v5 plateau analysis -- the
+#      4.75M-param model was capacity-bound, mag_stft loss saturating early.
+#   2. Multi-resolution log-mel perceptual loss (weight 0.3) on top of mag_stft.
+#      Standard HiFi-GAN-style auxiliary; +0.5-1.0 dB typical.
+#   3. bf16 mixed precision (A100 native, ~1.5-2x speedup vs fp32).
+#   4. Full a100 step budget (100k effective steps; 8x v5's compute).
+#   5. EMA decay 0.999 (proportional to longer run; half-life 693 steps =
+#      0.7% of total, well under the 5% threshold).
+#
+# Manifest: data/v2/ from 3060 work (face_ok-filtered VoxCeleb2-mix, 432 speakers).
+#
+# Projected outcome based on v5 trajectory + scale-up math:
+#   v5 partial (3060): val SDRi +0.11 dB at step 1750 (still climbing)
+#   +0.5-0.8 dB from finishing v5's 12500 steps   ->  +0.7-1.0 dB
+#   +0.5-1.2 dB from 8x compute on A100           ->  +1.2-2.2 dB
+#   +1.0-2.0 dB from 4x model capacity            ->  +2.2-4.2 dB
+#   +0.5-1.0 dB from mel loss addition            ->  +2.7-5.2 dB
+#   Realistic mid-projection: +3.5 dB val SDRi
+#
+# Decision threshold: >=+3.5 dB green-lights ICASSP 2027 push.
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 500000
+  batch_size: 32
+train:
+  steps: 100000
+  lr: 5.0e-4
+  log_every: 100
+  ckpt_every: 5000
+  val_every: 1000
+  val_clips: 2000
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 2000
+  min_lr_ratio: 0.05
+  ema_decay: 0.999
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  accum_steps: 1
+  precision: bf16
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+    mag_stft: 0.5
+    mel: 0.3
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true
+  with_asd: false
+  d_model: 512
+  n_layers: 4
+  n_heads: 8

@@ -31,3 +31,32 @@ def test_tracker_creates_parent_directory(tmp_path: Path) -> None:
     t = Tracker(nested)
     t.log(1, x=0.0)
     assert nested.exists()
+
+
+def test_tracker_truncates_existing_file_by_default(tmp_path: Path) -> None:
+    """A fresh Tracker(path) should wipe any prior contents at that path."""
+    path = tmp_path / "metrics.jsonl"
+    path.write_text('{"step": 99, "stale": true}\n')
+
+    t = Tracker(path)
+    t.log(0, fresh=1.0)
+
+    lines = path.read_text().strip().splitlines()
+    assert len(lines) == 1
+    first = json.loads(lines[0])
+    assert first["step"] == 0
+    assert "stale" not in first
+
+
+def test_tracker_append_preserves_existing_records(tmp_path: Path) -> None:
+    """Tracker(path, append=True) keeps prior trace -- the --resume path."""
+    path = tmp_path / "metrics.jsonl"
+    path.write_text('{"step": 100, "kept": true}\n')
+
+    t = Tracker(path, append=True)
+    t.log(200, fresh=1.0)
+
+    lines = path.read_text().strip().splitlines()
+    assert len(lines) == 2
+    assert json.loads(lines[0])["step"] == 100
+    assert json.loads(lines[1])["step"] == 200

@@ -1,0 +1,47 @@
+# 3060 run-2 (v3): face_ok-filtered manifest + gradient accumulation.
+#
+# Diagnosis of v2_fresh plateau at +0.18 dB val SDRi:
+#   - 27% of v2 clips had face_ok < 0.5 -> some batches trained audio-only
+#   - batch=8 with stratified speaker sampling + wide SNR aug -> noisy per-batch gradients
+# Fix:
+#   - run scripts/data_prep/filter_manifest_by_face_ok.py first (drops bad-face speakers)
+#   - accum_steps=4 simulates effective batch=32 without growing VRAM
+# Step budget preserves the per-sample compute of v2 (50k * batch 8 = 400k samples;
+# v3 12500 effective steps * 32 = 400k samples). Cadences scale 4x tighter
+# so we still get the same number of log/val/ckpt events per run.
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 8
+train:
+  steps: 12500            # *effective* steps; each consumes accum_steps mini-batches
+  lr: 5.0e-4
+  log_every: 25
+  ckpt_every: 1250
+  val_every: 500
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 250
+  min_lr_ratio: 0.05
+  ema_decay: 0.999
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 4          # effective batch = batch_size * accum_steps = 32
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
