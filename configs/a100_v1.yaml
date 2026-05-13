@@ -1,7 +1,8 @@
 # A100 first scale-up run. Combines the v5 recipe with:
-#   1. Bigger model: 4.69M -> 18.75M params (d_model 256->512, n_layers 2->4)
-#      This is the #1 single-issue lever per the v5 plateau analysis -- the
-#      4.75M-param model was capacity-bound, mag_stft loss saturating early.
+#   1. Bigger model: 4.69M -> 27.09M params (d_model 256->576, n_layers 2->5,
+#      n_heads 4->8). Bump from the original 18.75M after v6 train signal
+#      showed the 18.75M model approaching capacity ceiling. 27M leaves room
+#      for full-VoxCeleb2 scaling without hitting the param/data balance wall.
 #   2. Multi-resolution log-mel perceptual loss (weight 0.3) on top of mag_stft.
 #      Standard HiFi-GAN-style auxiliary; +0.5-1.0 dB typical.
 #   3. bf16 mixed precision (A100 native, ~1.5-2x speedup vs fp32).
@@ -11,13 +12,13 @@
 #
 # Manifest: data/v2/ from 3060 work (face_ok-filtered VoxCeleb2-mix, 432 speakers).
 #
-# Projected outcome based on v5 trajectory + scale-up math:
-#   v5 partial (3060): val SDRi +0.11 dB at step 1750 (still climbing)
-#   +0.5-0.8 dB from finishing v5's 12500 steps   ->  +0.7-1.0 dB
-#   +0.5-1.2 dB from 8x compute on A100           ->  +1.2-2.2 dB
-#   +1.0-2.0 dB from 4x model capacity            ->  +2.2-4.2 dB
-#   +0.5-1.0 dB from mel loss addition            ->  +2.7-5.2 dB
-#   Realistic mid-projection: +3.5 dB val SDRi
+# Projected outcome based on v5/v6 trajectory + scale-up math:
+#   v6 partial (3060, 18.75M): val SDRi +0.19 dB at step 2000
+#   +0.5-1.0 dB from full 12500 v6 steps          ->  +0.7-1.2 dB
+#   +0.3-0.6 dB from 27M vs 18.75M                ->  +1.0-1.8 dB
+#   +0.5-1.0 dB from 8x compute on A100           ->  +1.5-2.8 dB
+#   +1.0-2.0 dB from full VoxCeleb2 data scale    ->  +2.5-4.8 dB
+#   Realistic mid-projection: +3.0 to +3.5 dB val SDRi
 #
 # Decision threshold: >=+3.5 dB green-lights ICASSP 2027 push.
 seed: 0
@@ -61,6 +62,6 @@ model:
   with_enrollment: true
   with_slots: true
   with_asd: false
-  d_model: 512
-  n_layers: 4
+  d_model: 576
+  n_layers: 5
   n_heads: 8
