@@ -1,0 +1,62 @@
+# 3060 v7: 27M-param NanoTSE (d_model=576, n_layers=5, n_heads=8).
+#
+# Logical next step after v6 (18.75M). +44% more params with the v6 loss stack
+# (mag_stft + mel) and same effective batch.
+#
+# Expected lift over v6 (rough estimate):
+#   - More capacity for spectral detail and slot-memory binding: +0.3 to +0.5 dB
+#   - Risk of mild overfitting at our 432-speaker data scale: subtract 0.1-0.2 dB
+#   - Net: +0.2 to +0.4 dB val SDRi vs v6 (subject to slope-decay reality)
+#
+# Differences from configs/3060_v6.yaml:
+#   - d_model: 512 -> 576
+#   - n_layers: 4 -> 5
+#   - batch_size: 4 -> 2          (compensate for the ~44% bigger model)
+#   - accum_steps: 8 -> 16        (keeps effective_batch=32 unchanged)
+#
+# VRAM projection: 27.09M * 1.4x activation cost vs 18.75M -> ~3 GB at batch=2.
+# Comfortable in 6 GB. Could push batch=4 + accum=8 if VRAM permits (test first).
+seed: 0
+device: auto
+data:
+  root: data/v2
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 50000
+  batch_size: 2
+train:
+  steps: 12500
+  lr: 5.0e-4
+  log_every: 25
+  ckpt_every: 1250
+  val_every: 500
+  val_clips: 500
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 250
+  min_lr_ratio: 0.05
+  ema_decay: 0.99
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  accum_steps: 16
+  precision: fp32
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+    mag_stft: 0.5
+    mel: 0.3
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true
+  with_asd: false
+  d_model: 576
+  n_layers: 5
+  n_heads: 8

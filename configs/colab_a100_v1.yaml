@@ -1,0 +1,62 @@
+# Colab A100 first run -- tuned for:
+#   - Drive-mounted data (slower I/O than local SSD)
+#   - 12-24h session cap (Colab Pro / Pro+)
+#   - Resilient ckpt save to Drive so disconnects survive
+#
+# Differences from configs/a100_v1.yaml:
+#   - data.root        -> Drive-mounted path (set by colab notebook)
+#   - steps            -> 30000 (fits a single Colab Pro session even with
+#                          throughput-degraded Drive I/O; can chain runs with
+#                          --resume if you have more time)
+#   - val_every        -> 500 (more checkpoints for resilience)
+#   - ckpt_every       -> 1000 (frequent saves to Drive)
+#   - num_workers      -> 8 (Colab A100 box has many cores)
+#   - persistent + prefetch = 4 (hide Drive read latency)
+#   - batch_size       -> 16 (vs A100 80GB native 32; Colab A100 is 40GB)
+#   - accum_steps      -> 2 (eff_batch = 32, same as A100 production)
+#
+# When you have more session budget, --resume from latest.pt and bump steps.
+seed: 0
+device: auto
+data:
+  root: /content/drive/MyDrive/nanotse/data/v2   # override at runtime if path differs
+  sample_rate: 16000
+  fps: 25
+  clip_seconds: 4.0
+  num_clips: 150000
+  batch_size: 16
+train:
+  steps: 30000
+  lr: 5.0e-4
+  log_every: 100
+  ckpt_every: 1000
+  val_every: 500
+  val_clips: 2000
+  grad_clip: 5.0
+  snr_db_low: -5.0
+  snr_db_high: 10.0
+  warmup_steps: 1000
+  min_lr_ratio: 0.05
+  ema_decay: 0.999
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  accum_steps: 2
+  precision: bf16
+  loss_weights:
+    si_snr: 1.0
+    infonce: 0.1
+    asd: 0.0
+    consistency: 0.0
+    mag_stft: 0.5
+    mel: 0.3
+model:
+  name: nanotse
+  with_visual: true
+  with_enrollment: true
+  with_slots: true
+  with_asd: false
+  d_model: 576
+  n_layers: 5
+  n_heads: 8
